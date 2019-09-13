@@ -31,9 +31,9 @@ struct thread_data_t {
   unsigned long nb_balances;
   unsigned long balances;
   unsigned long nb_aborts;
-  struct timespec start, finish;
-  bool lockfree;
   simplemap_t<int, float>* accounts;
+  bool lockfree;
+  struct timespec start, finish;
 };
 
 void test_driver(config_t& cfg);
