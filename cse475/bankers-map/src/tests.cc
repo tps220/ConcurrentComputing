@@ -184,6 +184,11 @@ inline thread_data_t constructThreadData(
     .keyRange = keyRange,
     .iters = iters,
     .deposit = deposit,
+    .nb_deposits = 0,
+    .deposits = 0,
+    .nb_balances = 0,
+    .balances = 0,
+    .nb_aborts = 0,
     .accounts = accounts,
     .lockfree = lockfree
   };
