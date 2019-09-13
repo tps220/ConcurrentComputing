@@ -2,7 +2,6 @@
 // Fall 2019
 //
 // Description:  This file implements the config_t::dump() function
-
 #include <iostream>
 #include "config_t.h"
 
@@ -13,5 +12,6 @@ void config_t::dump() {
     std::cout << name << ", "
               << key_max << ", "
               << iters << ", "
+              << buckets << ", "
               << threads << std::endl;
 }
