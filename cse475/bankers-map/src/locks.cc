@@ -1,16 +1,21 @@
 #pragma once
-#include <mutex>
+#include <pthread.h>
 
-#define LOCK(mutex) ((mutex).lock())
-#define UNLOCK(mutex) ((mutex).unlock())
-#define INTIALIZE_LOCK(mutex) //
-#define LOCK_TYPE std::mutex
+#define WRITE_LOCK(rwlock) pthread_rwlock_wrlock((rwlock))
+#define READ_LOCK(rwlock) pthread_rwlock_rdlock((rwlock))
+#define READ_UNLOCK(rwlock) pthread_rwlock_unlock((rwlock))
+#define WRITE_UNLOCK(rwlock) pthread_rwlock_unlock((rwlock))
+#define INTIALIZE_LOCK(rwlock) pthread_rwlock_init((rwlock), NULL)
+#define LOCK_TYPE pthread_rwlock_t
 
 LOCK_TYPE* locks;
 unsigned int lockSize;
 
 void initializeLocks(unsigned int size) {
   locks = new LOCK_TYPE[size];
+  for (int i = 0; i < size; i++) {
+    INTIALIZE_LOCK(locks[i]);
+  }
   lockSize = size;
 }
 
@@ -18,38 +23,38 @@ void deleteLocks() {
   delete locks;
 }
 
-bool acquireLock(int idx) { 
-  LOCK(locks[idx]); 
+bool acquireWriteLock(int idx) { 
+  WRITE_LOCK(locks[idx]); 
   return true;
 }
 
-bool releaseLock(int idx) {
-  UNLOCK(locks[idx]);
+bool releaseWriteLock(int idx) {
+  WRITE_UNLOCK(locks[idx]);
   return true;
 }
 
-bool acquireLocks(int i, int j) {
-  LOCK(locks[i]);
-  LOCK(locks[j]);
+bool acquireWriteLocks(int i, int j) {
+  WRITE_LOCK(locks[i]);
+  WRITE_LOCK(locks[j]);
   return true;
 }
 
-bool releaseLocks(int i, int j) {
-  UNLOCK(locks[i]);
-  UNLOCK(locks[j]);
+bool releaseWriteLocks(int i, int j) {
+  WRITE_UNLOCK(locks[i]);
+  WRITE_UNLOCK(locks[j]);
   return true;
 }
 
 bool acquireAll_Reader() {
   for (int i = 0 ; i < lockSize; i++) {
-    LOCK(locks[i]);
+    READ_LOCK(locks[i]);
   }
   return true;
 }
 
 bool releaseAll_Reader() {
   for (int i = 0; i < lockSize; i++) {
-    UNLOCK(locks[i]);
+    READ_UNLOCK(locks[i]);
   }
   return true;
 }
