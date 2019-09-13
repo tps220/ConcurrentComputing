@@ -5,7 +5,6 @@
 // configuration information to drive tests that evaluate the correctness and
 // performance of the map type you create.
 
-// Run a bunch of tests to ensure the data structure works correctly
 #include "simplemap.h"
 #include "locks.h"
 #include "config_t.h"
@@ -13,6 +12,13 @@
 #include <ctime>
 #include <stdlib.h>
 #include <thread>
+#include "string.h"
+
+#define MAX_AMOUNT 100000
+#define MULTI_THREAD false
+#define LOCKFREE true
+#define EXISTS(pair) (pair).second
+#define GET_BALANCE(pair) (pair).first
 
 struct thread_data_t {
   int id;
@@ -26,10 +32,11 @@ struct thread_data_t {
   unsigned long balances;
   unsigned long nb_aborts;
   struct timespec start, finish;
+  bool lockfree;
   simplemap_t<int, float>* accounts;
 };
 
 void test_driver(config_t& cfg);
 void do_work(thread_data_t* thread);
 bool deposit(simplemap_t<int, float>* map, thread_data_t* thread);
-float balance(simplemap_t<int, float>* map, unsigned int range);
+float balance(simplemap_t<int, float>* map, unsigned int range, bool lockfree);
