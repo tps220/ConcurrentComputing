@@ -5,6 +5,7 @@
 // the configuration information to drive tests that evaluate the correctness
 // and performance of the map_t object
 #include "tests.h"
+#include "string.h"
 
 #define MAX_AMOUNT 100000
 #define EXISTS(pair) (pair).second
@@ -39,7 +40,7 @@ void run_custom_tests(config_t& cfg) {
     simplemap_t<int, float>* accounts = new simplemap_t<int, float>(cfg.buckets);
 
     //Fill up zero-sum game of accounts to balance of 100000
-    float initialBalance = MAX_AMOUNT / 1.0 * cfg.key_max;
+    float initialBalance = MAX_AMOUNT / (1.0 * cfg.key_max);
     for (int i = 0; i < cfg.key_max; i++) {
       accounts -> insert(i, initialBalance);
     }
@@ -48,13 +49,14 @@ void run_custom_tests(config_t& cfg) {
     initializeLocks(cfg.buckets);
     std::thread threads[cfg.threads];
     thread_data_t data[cfg.threads];
+    memset(&data, 0, sizeof(thread_data_t) * cfg.threads);
 
     //Execution do_work
     for (int i = 0; i < cfg.threads; i++) {
       data[i].id = i;
       data[i].seed = rand();
       data[i].keyRange = cfg.key_max;
-      data[i].iters = cfg.iters;
+      data[i].iters = cfg.iters / cfg.threads;
       data[i].deposit = initialBalance / 10;
       data[i].accounts = accounts;
 
@@ -64,14 +66,22 @@ void run_custom_tests(config_t& cfg) {
     for (int i = 0; i < cfg.threads; i++) {
       threads[i].join();
     }
-    std::cout << "FINAL BALANCE: " << balance(accounts, cfg.key_max) << std::endl;
 
-		// WHAT IS THE OUTPUT OF this call of "balance"?
-		// DOES IT MATCH WHAT YOU EXPECT?
-		// WHAT DO YOU EXPECT?
-		// WHAT ARE THE OUTCOMES OF ALL THE "balance" CALLS DURING THE EXECUTION?
-		// IS THAT WHAT YOU EXPECT?
-
+    double totalTime = 0;
+    int deposits = 0;
+    int balances = 0;
+    for (int i = 0; i < cfg.threads; i++){
+      totalTime +=( data[i].finish.tv_sec - data[i].start.tv_sec )
+                + ( data[i].finish.tv_nsec - data[i].start.tv_nsec ) / (1000000000L * 1.0);
+      deposits += data[i].nb_deposits;
+      balances += data[i].nb_balances;
+    }
+    std::cout << "FINAL BALANCE: " << (int)balance(accounts, cfg.key_max) << std::endl;
+    std::cout << "Performance:" << std::endl
+              << "Total time " << totalTime << std::endl
+              << "Time per thread " << totalTime / cfg.threads << std:: endl
+              << "Balances " << balances << " (" << balances * 1.0 / (balances + deposits) * 100 << "%)" << std::endl
+              << "Deposits " << deposits << " (" << deposits * 1.0 / (balances + deposits) * 100 << "%)" << std::endl;
 		// Step 7
 		// Now configure your application to perform the same total amount
 		// of iterations just executed, but all done by a single thread.
@@ -80,7 +90,7 @@ void run_custom_tests(config_t& cfg) {
 		// Which conclusion can you draw?
 		// Which optimization can you do to the single-threaded execution in
 		// order to improve its performance?
-    accounts -> apply(printer);
+    //accounts -> apply(printer);
 
     //Cleanup
     deleteLocks();
@@ -122,10 +132,12 @@ void do_work(thread_data_t* thread) {
 }
 
 float balance(simplemap_t<int, float>* map, unsigned int range) {
+  acquireAll_Reader();
   float total = 0;
   for (int i = 0; i < range; i++) {
     total += GET_BALANCE(map -> lookup(i));
   }
+  releaseAll_Reader();
   return total;
 }
 
@@ -134,22 +146,20 @@ inline bool applyDeposit(simplemap_t<int, float>* map, int keySource, int keyTar
   std::pair<float, bool> sourceAccount = map -> lookup(keySource);
   if (EXISTS(sourceAccount)) {
     map -> update(keySource, GET_BALANCE(sourceAccount) - amount);
-
     std::pair<float, bool> targetAccount = map -> lookup(keyTarget);
     if (EXISTS(targetAccount)) {
       map -> update(keyTarget, GET_BALANCE(targetAccount) + amount);
       return true;
     }
-
     //fallback
-    map -> update(keySource, GET_BALANCE(targetAccount) + amount);
+    map -> update(keySource, GET_BALANCE(sourceAccount));
   }
   return false;
 }
 
 bool deposit(simplemap_t<int, float>* map, thread_data_t* thread) {
-	const unsigned int keySource = rand_integer(&thread -> seed, thread -> keyRange), 
-                     keyTarget = rand_integer(&thread -> seed, thread -> keyRange);
+	const unsigned int keySource = rand_integer(&thread -> seed, thread -> keyRange - 1), 
+                     keyTarget = rand_integer(&thread -> seed, thread -> keyRange - 1);
 	const float        amount = thread -> deposit;
   const unsigned int sourceBucket = map -> hash(keySource);
   const unsigned int targetBucket = map -> hash(keyTarget);
