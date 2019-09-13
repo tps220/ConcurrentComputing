@@ -117,19 +117,19 @@ bool deposit(simplemap_t<int, float>* map, thread_data_t* thread) {
     retval = applyDeposit(map, keySource, keyTarget, amount);
   }
   else if (sourceBucket < targetBucket) {
-    acquireLocks(sourceBucket, targetBucket);
+    acquireWriteLocks(sourceBucket, targetBucket);
     retval = applyDeposit(map, keySource, keyTarget, amount);
-    releaseLocks(sourceBucket, targetBucket);
+    releaseWriteLocks(sourceBucket, targetBucket);
   }
   else if (sourceBucket > targetBucket) {
-    acquireLocks(targetBucket, sourceBucket);
+    acquireWriteLocks(targetBucket, sourceBucket);
     retval = applyDeposit(map, keySource, keyTarget, amount);
-    releaseLocks(targetBucket, sourceBucket);
+    releaseWriteLocks(targetBucket, sourceBucket);
   }
   else {
-    acquireLock(targetBucket);
+    acquireWriteLock(targetBucket);
     retval = applyDeposit(map, keySource, keyTarget, amount);
-    releaseLock(targetBucket);
+    releaseWriteLock(targetBucket);
   }
   return retval;
 }
