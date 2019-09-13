@@ -1,11 +1,11 @@
 #pragma once
 #include <pthread.h>
 
-#define WRITE_LOCK(rwlock) pthread_rwlock_wrlock((rwlock))
-#define READ_LOCK(rwlock) pthread_rwlock_rdlock((rwlock))
-#define READ_UNLOCK(rwlock) pthread_rwlock_unlock((rwlock))
-#define WRITE_UNLOCK(rwlock) pthread_rwlock_unlock((rwlock))
-#define INTIALIZE_LOCK(rwlock) pthread_rwlock_init((rwlock), NULL)
+#define WRITE_LOCK(rwlock) pthread_rwlock_wrlock(&(rwlock))
+#define READ_LOCK(rwlock) pthread_rwlock_rdlock(&(rwlock))
+#define READ_UNLOCK(rwlock) pthread_rwlock_unlock(&(rwlock))
+#define WRITE_UNLOCK(rwlock) pthread_rwlock_unlock(&(rwlock))
+#define INTIALIZE_LOCK(rwlock) pthread_rwlock_init(&(rwlock), NULL)
 #define LOCK_TYPE pthread_rwlock_t
 
 LOCK_TYPE* locks;
