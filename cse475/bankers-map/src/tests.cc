@@ -28,7 +28,6 @@ void run_custom_tests(config_t& cfg) {
     initializeLocks(cfg.buckets);
     std::thread threads[cfg.threads];
     thread_data_t data[cfg.threads];
-    memset(&data, 0, sizeof(thread_data_t) * cfg.threads);
 
     //Execution do_work
     for (int i = 0; i < cfg.threads; i++) {
@@ -51,7 +50,15 @@ void run_custom_tests(config_t& cfg) {
     printMultithreaded(cfg, data);
 		
     //Run single thread and record results
-    thread_data_t datum = constructThreadData(0, rand(), cfg.key_max, cfg.iters, initialBalance / 10, accounts, LOCKFREE);
+    thread_data_t datum = constructThreadData(
+      0, 
+      rand(), 
+      cfg.key_max, 
+      cfg.iters, 
+      initialBalance / 10, 
+      accounts, 
+      LOCKFREE
+    );
     do_work(&datum);
     printSinglethreaded(datum);
 

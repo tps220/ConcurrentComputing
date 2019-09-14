@@ -10,9 +10,10 @@
 //
 // The specification for each function appears as comments.
 // Students are responsible for implementing the simple map as specified.
-
 #include <cassert>
 #include <iostream>
+
+#ifndef OPTIMIZED
 #include "Node.h"
 
 template <class K, class V>
@@ -134,3 +135,55 @@ private:
         }
     }
 };
+
+#else 
+#include <vector>
+
+/* 
+  Specific to the application at hand,
+  assumes 1:1 mapping from Key --> Idx --> Value, 
+  as well as receiving items in sorted order
+*/
+template <class K, class V>
+class simplemap_t {
+private:
+    std::vector<K> keys;
+    std::vector<V> values;
+    const unsigned int buckets;
+
+  public:
+    simplemap_t(unsigned int buckets) : buckets(buckets) {}
+
+    ~simplemap_t() {}
+
+    unsigned int hash(K key) {
+        return key % this -> buckets;
+    }
+
+    bool insert(K key, V val) {
+        keys.push_back(key);
+        values.push_back(val);
+    }
+
+    bool update(K key, V val) {
+        values[key] = val;
+    }
+
+    bool removeAll() {
+        keys.clear();
+        values.clear();
+    }
+
+    std::pair<V, bool> lookup(K key) {
+        return std::make_pair(values[key], true);
+    }
+
+    // Apply a function to each key in the map
+    void apply(void (*f)(K, V)) {
+        for (int i = 0; i < keys.size(); i++) {
+            f(keys[i], values[i]);
+        }
+    }
+};
+
+#endif
