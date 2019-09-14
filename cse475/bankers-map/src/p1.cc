@@ -33,8 +33,8 @@ void parseargs(int argc, char** argv, config_t& cfg) {
         switch (opt) {
           case 'n': cfg.name = std::string(optarg); break;
           case 'k': cfg.key_max = atoi(optarg); break;
-          case 'b': cfg.iters = atoi(optarg); break;
-          case 'i': cfg.buckets = atoi(optarg); break;
+          case 'i': cfg.iters = atoi(optarg); break;
+          case 'b': cfg.buckets = atoi(optarg); break;
           case 't': cfg.threads = atoi(optarg); break;
           case 'h': usage(); break;
         }
