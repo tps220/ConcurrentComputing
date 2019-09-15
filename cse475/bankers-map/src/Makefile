@@ -22,7 +22,7 @@ CXXFLAGS = -MMD -ggdb -O3 -std=gnu++11 -m$(BITS)
 LDFLAGS	 = -m$(BITS) -lpthread -lrt
 
 # The basenames of the c++ files that this program uses
-CXXFILES = p1 tests config_t locks
+CXXFILES = p1 tests config_t locks threads
 
 # The executable we will build
 TARGET = $(ODIR)/p1

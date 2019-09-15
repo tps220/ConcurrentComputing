@@ -10,6 +10,7 @@
 //
 // The specification for each function appears as comments.
 // Students are responsible for implementing the simple map as specified.
+#pragma once
 #include <cassert>
 #include <iostream>
 
