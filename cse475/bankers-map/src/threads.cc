@@ -1,26 +1,28 @@
 #pragma once
 
 #include "threads.h"
+barrier_t barrier;
+
 void barrier_init(int n) {
-  pthread_cond_init(&thread_barrier.complete, NULL);
-  pthread_mutex_init(&thread_barrier.mutex, NULL);
-  thread_barrier.count = n;
-  thread_barrier.crossing = 0;
+  pthread_cond_init(&barrier.complete, NULL);
+  pthread_mutex_init(&barrier.mutex, NULL);
+  barrier.count = n;
+  barrier.crossing = 0;
 }
 
 void barrier_cross() {
-  pthread_mutex_lock(&thread_barrier.mutex);
+  pthread_mutex_lock(&barrier.mutex);
   /* One more thread through */
-  thread_barrier.crossing++;
+  barrier.crossing++;
   /* If not all here, wait */
-  if (thread_barrier.crossing < thread_barrier.count) {
-    pthread_cond_wait(&thread_barrier.complete, &thread_barrier.mutex);
+  if (barrier.crossing < barrier.count) {
+    pthread_cond_wait(&barrier.complete, &barrier.mutex);
   } else {
-    pthread_cond_broadcast(&thread_barrier.complete);
+    pthread_cond_broadcast(&barrier.complete);
     /* Reset for next time */
-    thread_barrier.crossing = 0;
+    barrier.crossing = 0;
   }
-  pthread_mutex_unlock(&thread_barrier.mutex);
+  pthread_mutex_unlock(&barrier.mutex);
 }
 
 void initializeSystem(config_t& cfg) {

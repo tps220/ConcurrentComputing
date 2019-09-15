@@ -4,12 +4,12 @@
 #include <stdlib.h>
 #include "simplemap.h"
 
-struct barrier {
+typedef struct barrier {
   pthread_cond_t complete;
   pthread_mutex_t mutex;
   int count;
   int crossing;
-} thread_barrier;
+} barrier_t;
 
 struct thread_data_t {
   int id;
