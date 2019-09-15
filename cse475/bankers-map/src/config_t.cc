@@ -8,7 +8,7 @@
 // Print the values of the iters, and name fields as comma separated
 // values, with a header row
 void config_t::dump() {
-    std::cout << "# name, key_max, iters, threads" << std::endl;
+    std::cout << "# name, key_max, iters, buckets, threads" << std::endl;
     std::cout << name << ", "
               << key_max << ", "
               << iters << ", "

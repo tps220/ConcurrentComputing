@@ -19,7 +19,7 @@
 #define LOCKFREE true
 #define EXISTS(pair) (pair).second
 #define GET_BALANCE(pair) (pair).first
-#define OPTIMIZED 1
+#define OPTIMIZED 0
 
 struct thread_data_t {
   int id;
