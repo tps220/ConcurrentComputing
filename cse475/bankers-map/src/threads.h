@@ -1,3 +1,4 @@
+#pragma once
 #include <pthread.h>
 #include "config_t.h"
 #include <stdlib.h>
