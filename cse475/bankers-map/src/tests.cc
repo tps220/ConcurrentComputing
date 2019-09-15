@@ -40,6 +40,8 @@ void run_custom_tests(config_t& cfg) {
       threads[i] = std::thread(do_work, &data[i]);
     }
 
+    barrier_cross();
+
     for (int i = 0; i < cfg.threads; i++) {
       threads[i].join();
     }
