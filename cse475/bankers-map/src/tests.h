@@ -13,29 +13,12 @@
 #include <stdlib.h>
 #include <thread>
 #include "string.h"
+#include "threads.h"
 
 #define MAX_AMOUNT 100000
-#define MULTI_THREAD false
-#define LOCKFREE true
 #define EXISTS(pair) (pair).second
 #define GET_BALANCE(pair) (pair).first
 #define OPTIMIZED 0
-
-struct thread_data_t {
-  int id;
-  unsigned int seed;
-  unsigned int keyRange;
-  unsigned int iters;
-  float deposit;
-  unsigned long nb_deposits;
-  unsigned long deposits;
-  unsigned long nb_balances;
-  unsigned long balances;
-  unsigned long nb_aborts;
-  simplemap_t<int, float>* accounts;
-  bool lockfree;
-  struct timespec start, finish;
-};
 
 void test_driver(config_t& cfg);
 void do_work(thread_data_t* thread);

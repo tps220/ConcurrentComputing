@@ -6,14 +6,11 @@
 // and performance of the map_t object
 #include "tests.h"
 
-void printMultithreaded(const config_t&, const thread_data_t*);
-void printSinglethreaded(const thread_data_t);
 inline const unsigned int rand_integer(unsigned int *, long r);
-inline thread_data_t constructThreadData(int, unsigned int, unsigned int, unsigned int, float, simplemap_t<int, float>*, bool);
 inline bool applyDeposit(simplemap_t<int, float>*, int, int, float);
 
 void run_custom_tests(config_t& cfg) {
-    srand((int)time(0));
+    initializeSystem(cfg);
 
     //Initialize map
     simplemap_t<int, float>* accounts = new simplemap_t<int, float>(cfg.buckets);
@@ -65,19 +62,14 @@ void run_custom_tests(config_t& cfg) {
     //Cleanup
     deleteLocks();
     delete accounts;
-
-		// Final step: Produce plot
-        // I expect each submission to include a plot in which
-        // the x-axis is the concurrent threads used {1;2;4;8}
-        // the y-axis is the application execution t ime.
-        // The performance at 1 thread must be the sequential
-        // application without atomic execution
-      
 }
 
 void do_work(thread_data_t* thread) {
   simplemap_t<int, float>* accounts = thread -> accounts;
   const unsigned int iters = thread -> iters;
+  if (!thread -> lockfree) {
+    barrier_cross();
+  }
 
   clock_gettime(CLOCK_MONOTONIC, &thread -> start);
   for (int i = 0; i < iters; i++) {
@@ -141,7 +133,6 @@ bool deposit(simplemap_t<int, float>* map, thread_data_t* thread) {
   return retval;
 }
 
-
 inline bool applyDeposit(simplemap_t<int, float>* map, int keySource, int keyTarget, float amount) {
   std::pair<float, bool> sourceAccount = map -> lookup(keySource);
   if (EXISTS(sourceAccount)) {
@@ -173,63 +164,6 @@ inline const unsigned int rand_integer(unsigned int *seed, long r) {
     r -= m;
   } while (r > 0);
   return v;
-}
-
-
-inline thread_data_t constructThreadData(
-  int id, 
-  unsigned int seed, 
-  unsigned int keyRange, 
-  unsigned int iters, 
-  float deposit, 
-  simplemap_t<int, float>* accounts,
-  bool lockfree
-) {
-  return (thread_data_t) {
-    .id = id,
-    .seed = seed,
-    .keyRange = keyRange,
-    .iters = iters,
-    .deposit = deposit,
-    .nb_deposits = 0,
-    .deposits = 0,
-    .nb_balances = 0,
-    .balances = 0,
-    .nb_aborts = 0,
-    .accounts = accounts,
-    .lockfree = lockfree
-  };
-}
-
-void printMultithreaded(const config_t &cfg, const thread_data_t* data) {
-  double totalTime = 0;
-  int deposits = 0;
-  int balances = 0;
-  for (int i = 0; i < cfg.threads; i++){
-    totalTime += (data[i].finish.tv_sec - data[i].start.tv_sec)
-              +  (data[i].finish.tv_nsec - data[i].start.tv_nsec) / (1000000000L * 1.0);
-    deposits  += data[i].nb_deposits;
-    balances  += data[i].nb_balances;
-  }
-  std::cout << "------------------------------MULTI THREADED-------------------------" << std::endl;
-  std::cout << "Performance:" << std::endl
-            << "Total time " << totalTime << std::endl
-            << "Time per thread " << totalTime / cfg.threads << std:: endl
-            << "Balances " << balances << " (" << balances * 1.0 / (balances + deposits) * 100 << "%)" << std::endl
-            << "Deposits " << deposits << " (" << deposits * 1.0 / (balances + deposits) * 100 << "%)" << std::endl;
-}
-
-void printSinglethreaded(const thread_data_t datum) {
-  double totalTime = (datum.finish.tv_sec - datum.start.tv_sec)
-                   + (datum.finish.tv_nsec - datum.start.tv_nsec) / (1000000000L * 1.0);
-  int deposits = datum.nb_deposits;
-  int balances = datum.nb_balances;
-
-  std::cout << "------------------------------SINGLE THREADED-------------------------" << std::endl;
-  std::cout << "Performance:" << std::endl
-            << "Total time " << totalTime << std::endl
-            << "Balances " << balances << " (" << balances * 1.0 / (balances + deposits) * 100 << "%)" << std::endl
-            << "Deposits " << deposits << " (" << deposits * 1.0 / (balances + deposits) * 100 << "%)" << std::endl;
 }
 
 void test_driver(config_t &cfg) {

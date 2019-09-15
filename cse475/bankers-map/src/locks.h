@@ -1,5 +1,8 @@
 #pragma once
 
+#define MULTI_THREAD 0
+#define LOCKFREE 1
+
 void initializeLocks(unsigned int size);
 void deleteLocks();
 bool acquireWriteLock(int idx);
