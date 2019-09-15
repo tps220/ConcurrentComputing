@@ -8,7 +8,7 @@ struct barrier {
   pthread_mutex_t mutex;
   int count;
   int crossing;
-} b;
+} thread_barrier;
 
 struct thread_data_t {
   int id;
