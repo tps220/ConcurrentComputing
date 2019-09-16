@@ -55,20 +55,29 @@ thread_data_t constructThreadData(
   };
 }
 
+inline double getTime(const thread_data_t datum) {
+  return (datum.finish.tv_sec - datum.start.tv_sec)
+       + (datum.finish.tv_nsec - datum.start.tv_nsec) / 1000000000.0;
+}
+
 void printMultithreaded(const config_t &cfg, const thread_data_t* data) {
   double totalTime = 0;
+  double maxTime = 0;
   int deposits = 0;
   int balances = 0;
   for (int i = 0; i < cfg.threads; i++){
-    totalTime += (data[i].finish.tv_sec - data[i].start.tv_sec)
-              +  (data[i].finish.tv_nsec - data[i].start.tv_nsec) / 1000000000.0;
+    totalTime += getTime(data[i]);
+    if (getTime(data[i]) > maxTime) {
+      maxTime = getTime(data[i]);
+    }
     deposits  += data[i].nb_deposits;
     balances  += data[i].nb_balances;
   }
   std::cout << "------------------------------MULTI THREADED-------------------------" << std::endl;
   std::cout << "Performance:" << std::endl
             << "Total time " << totalTime << std::endl
-            << "Time per thread " << totalTime / cfg.threads << std:: endl
+            << "Time per thread " << totalTime / cfg.threads << std::endl
+            << "Latency (longest thread) " << maxTime << std::endl
             << "Balances " << balances << " (" << balances * 1.0 / (balances + deposits) * 100 << "%)" << std::endl
             << "Deposits " << deposits << " (" << deposits * 1.0 / (balances + deposits) * 100 << "%)" << std::endl;
 }

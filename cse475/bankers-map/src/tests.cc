@@ -107,9 +107,9 @@ float balance(simplemap_t<int, float>* map, unsigned int range, bool lockfree) {
 }
 
 bool deposit(simplemap_t<int, float>* map, thread_data_t* thread) {
-	const unsigned int keySource = rand_integer(&thread -> seed, thread -> keyRange - 1), 
+  const unsigned int keySource = rand_integer(&thread -> seed, thread -> keyRange - 1), 
                      keyTarget = rand_integer(&thread -> seed, thread -> keyRange - 1);
-	const float        amount = thread -> deposit;
+  const float        amount = thread -> deposit;
   const unsigned int sourceBucket = map -> hash(keySource);
   const unsigned int targetBucket = map -> hash(keyTarget);
 
