@@ -14,7 +14,7 @@
 #include <cassert>
 #include <iostream>
 
-#ifndef OPTIMIZED
+#if OPTIMIZED == 0
 #include "Node.h"
 
 template <class K, class V>
