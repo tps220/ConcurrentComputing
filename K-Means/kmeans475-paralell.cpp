@@ -8,11 +8,28 @@
 #include <time.h>
 #include <algorithm>
 #include <chrono>
-
+#include "tbb/blocked_range.h"
+#include "tbb/parallel_for.h"
+#include "tbb/parallel_reduce.h"
+#include "tbb/partitioner.h"
+#include <pthread.h>
 using namespace std;
 
-class Point
-{
+static unsigned long a = 123456789, b = 362436069, c = 521288629;
+unsigned long xorshf96(void) {
+	unsigned long t;
+  a ^= a << 16;
+  a ^= a >> 5;
+  a ^= a << 1;
+
+  t = a;
+  a = b;
+  b = c;
+  c = t ^ a ^ b;
+  return c;
+}
+
+class Point {
 private:
 	int id_point, id_cluster;
 	vector<double> values;
@@ -20,87 +37,76 @@ private:
 	string name;
 
 public:
-	Point(int id_point, vector<double>& values, string name = "")
-	{
+	Point(int id_point, vector<double>& values, string name = "") {
 		this->id_point = id_point;
 		total_values = values.size();
 
-		for(int i = 0; i < total_values; i++)
+		for (int i = 0; i < total_values; i++) {
 			this->values.push_back(values[i]);
+		}
 
 		this->name = name;
 		id_cluster = -1;
 	}
 
-	int getID()
-	{
+	int getID() {
 		return id_point;
 	}
 
-	void setCluster(int id_cluster)
-	{
+	void setCluster(int id_cluster) {
 		this->id_cluster = id_cluster;
 	}
 
-	int getCluster()
-	{
+	int getCluster() {
 		return id_cluster;
 	}
 
-	double getValue(int index)
-	{
+	double getValue(int index) {
 		return values[index];
 	}
 
-	int getTotalValues()
-	{
+	int getTotalValues() {
 		return total_values;
 	}
 
-	void addValue(double value)
-	{
+	void addValue(double value) {
 		values.push_back(value);
 	}
 
-	string getName()
-	{
+	string getName() {
 		return name;
 	}
 };
 
-class Cluster
-{
+class Cluster {
 private:
 	int id_cluster;
 	vector<double> central_values;
 	vector<Point> points;
+	pthread_mutex_t tsx_mtx;
 
 public:
-	Cluster(int id_cluster, Point point)
-	{
+	Cluster(int id_cluster, Point point) {
 		this->id_cluster = id_cluster;
-
 		int total_values = point.getTotalValues();
 
-		for(int i = 0; i < total_values; i++)
+		for (int i = 0; i < total_values; i++) {
 			central_values.push_back(point.getValue(i));
+		}
 
+		points.push_back(point);
+		pthread_mutex_init(&tsx_mtx, 0);
+	}
+
+	void addPoint(Point point) {
 		points.push_back(point);
 	}
 
-	void addPoint(Point point)
-	{
-		points.push_back(point);
-	}
-
-	bool removePoint(int id_point)
-	{
+	bool removePoint(int id_point) {
 		int total_points = points.size();
 
-		for(int i = 0; i < total_points; i++)
-		{
-			if(points[i].getID() == id_point)
-			{
+		for (int i = 0; i < total_points; i++) {
+			if (points[i].getID() == id_point) {
 				points.erase(points.begin() + i);
 				return true;
 			}
@@ -108,73 +114,72 @@ public:
 		return false;
 	}
 
-	double getCentralValue(int index)
-	{
+	double getCentralValue(int index) {
 		return central_values[index];
 	}
 
-	void setCentralValue(int index, double value)
-	{
+	void setCentralValue(int index, double value) {
 		central_values[index] = value;
 	}
 
-	Point getPoint(int index)
-	{
+	Point getPoint(int index) {
 		return points[index];
 	}
 
-	int getTotalPoints()
-	{
+	int getTotalPoints() {
 		return points.size();
 	}
 
-	int getID()
-	{
+	int getID() {
 		return id_cluster;
+	}
+
+	void safeAddPoint(Point point) {
+		pthread_mutex_lock(&tsx_mtx);
+		addPoint(point);
+		pthread_mutex_unlock(&tsx_mtx);
+	}
+
+	bool safeRemovePoint(int id_point) {
+		pthread_mutex_lock(&tsx_mtx);
+		removePoint(id_point);
+		pthread_mutex_unlock(&tsx_mtx);
 	}
 };
 
-class KMeans
-{
+class KMeans {
 private:
 	int K; // number of clusters
 	int total_values, total_points, max_iterations;
 	vector<Cluster> clusters;
 
 	// return ID of nearest center (uses euclidean distance)
-	int getIDNearestCenter(Point point)
-	{
+	int getIDNearestCenter(Point point) {
 		double sum = 0.0, min_dist;
 		int id_cluster_center = 0;
 
-		for(int i = 0; i < total_values; i++)
-		{
+		for (int i = 0; i < total_values; i++) {
 			sum += pow(clusters[0].getCentralValue(i) -
 					   point.getValue(i), 2.0);
 		}
 
 		min_dist = sqrt(sum);
 
-		for(int i = 1; i < K; i++)
-		{
+		for (int i = 1; i < K; i++) {
 			double dist;
 			sum = 0.0;
 
-			for(int j = 0; j < total_values; j++)
-			{
-				sum += pow(clusters[i].getCentralValue(j) -
-						   point.getValue(j), 2.0);
+			for (int j = 0; j < total_values; j++) {
+				sum += pow(clusters[i].getCentralValue(j) - point.getValue(j), 2.0);
 			}
 
 			dist = sqrt(sum);
 
-			if(dist < min_dist)
-			{
+			if (dist < min_dist) {
 				min_dist = dist;
 				id_cluster_center = i;
 			}
 		}
-
 		return id_cluster_center;
 	}
 
@@ -186,154 +191,144 @@ public:
 		this->max_iterations = max_iterations;
 	}
 
-	void run(vector<Point> & points) {
+	void run(vector<Point>& points) {
     auto begin = chrono::high_resolution_clock::now();
         
-		if(K > total_points)
+		if (K > total_points) {
 			return;
-
+		}
+		//Assign K random indexes to become cluster centers
 		vector<int> prohibited_indexes;
-
-		// choose K distinct values for the centers of the clusters
-		for(int i = 0; i < K; i++)
-		{
-			while(true)
-			{
-				int index_point = rand() % total_points;
-
-				if(find(prohibited_indexes.begin(), prohibited_indexes.end(),
-						index_point) == prohibited_indexes.end())
-				{
-					prohibited_indexes.push_back(index_point);
-					points[index_point].setCluster(i);
-					Cluster cluster(i, points[index_point]);
-					clusters.push_back(cluster);
-					break;
-				}
+		for (int i = 0; i < K; i++) {
+			int index_point = xorshf96() % total_points;
+			if (find(prohibited_indexes.begin(), prohibited_indexes.end(), index_point) == prohibited_indexes.end()) {
+				prohibited_indexes.push_back(index_point);
+				points[index_point].setCluster(i);
+			}
+			else {
+				i--;
 			}
 		}
-        auto end_phase1 = chrono::high_resolution_clock::now();
-        
-		int iter = 1;
+		cout << prohibited_indexes.size() << " " << K << endl;
+		tbb::parallel_for(tbb::blocked_range<size_t>(0, K), [&](tbb::blocked_range<size_t>& r) {
+			for (size_t i = r.begin(); i != r.end(); i++) {
+				int index_point = prohibited_indexes[i];
+				cout << index_point << endl;
+				Cluster cluster(i, points[index_point]);
+				clusters.push_back(cluster);
+			}
+    }, tbb::simple_partitioner());
+    
+    auto end_phase1 = chrono::high_resolution_clock::now();
+    //end
 
-		while(true)
-		{
+		//Group elements into perfect clusters or execute x iterations to approximate clusters
+		int iter = 1;
+		while(true) {
 			bool done = true;
 
 			// associates each point to the nearest center
-			for(int i = 0; i < total_points; i++)
-			{
-				int id_old_cluster = points[i].getCluster();
-				int id_nearest_center = getIDNearestCenter(points[i]);
+			tbb::parallel_for(tbb::blocked_range<size_t>(0, total_points), [&](tbb::blocked_range<size_t>& r) {
+				for (size_t i = r.begin(); i != r.end(); i++) {
+					int id_old_cluster = points[i].getCluster();
+					int id_nearest_center = getIDNearestCenter(points[i]);
 
-				if(id_old_cluster != id_nearest_center)
-				{
-					if(id_old_cluster != -1)
-						clusters[id_old_cluster].removePoint(points[i].getID());
+					if (id_old_cluster != id_nearest_center) {
+						if (id_old_cluster != -1) {
+							clusters[id_old_cluster].safeRemovePoint(points[i].getID()); //TODO: Wrap in a synchronzied block
+						}
 
-					points[i].setCluster(id_nearest_center);
-					clusters[id_nearest_center].addPoint(points[i]);
-					done = false;
+						points[i].setCluster(id_nearest_center);
+						clusters[id_nearest_center].safeAddPoint(points[i]);  //TODO: Wrap in a synchronzied block
+						done = false;
+					}
 				}
-			}
+			}, tbb::simple_partitioner());
 
-			// recalculating the center of each cluster
-			for(int i = 0; i < K; i++)
-			{
-				for(int j = 0; j < total_values; j++)
-				{
+			//recalculating the center of each cluster
+			for (int i = 0; i < K; i++) {
+				for (int j = 0; j < total_values; j++) {
 					int total_points_cluster = clusters[i].getTotalPoints();
 					double sum = 0.0;
-
-					if(total_points_cluster > 0)
-					{
-						for(int p = 0; p < total_points_cluster; p++)
-							sum += clusters[i].getPoint(p).getValue(j);
+					if (total_points_cluster > 0) {
+						int sum = tbb::parallel_reduce(tbb::blocked_range<int>(0, total_points_cluster), 0, [&](tbb::blocked_range<int> r, int running_total) {
+  						for (int p = r.begin(); p < r.end(); p++) {
+    						running_total += clusters[i].getPoint(p).getValue(j);
+    					}
+    					return running_total;
+						}, std::plus<int>());
 						clusters[i].setCentralValue(j, sum / total_points_cluster);
 					}
 				}
 			}
 
-			if(done == true || iter >= max_iterations)
-			{
+			if (done == true || iter >= max_iterations) {
 				cout << "Break in iteration " << iter << "\n\n";
 				break;
 			}
-
 			iter++;
 		}
-        auto end = chrono::high_resolution_clock::now();
+    auto end = chrono::high_resolution_clock::now();
 
 		// shows elements of clusters
-		for(int i = 0; i < K; i++)
-		{
+		for (int i = 0; i < K; i++) {
 			int total_points_cluster =  clusters[i].getTotalPoints();
 
 			cout << "Cluster " << clusters[i].getID() + 1 << endl;
-			for(int j = 0; j < total_points_cluster; j++)
-			{
+			for (int j = 0; j < total_points_cluster; j++) {
 				cout << "Point " << clusters[i].getPoint(j).getID() + 1 << ": ";
-				for(int p = 0; p < total_values; p++)
+				for (int p = 0; p < total_values; p++) {
 					cout << clusters[i].getPoint(j).getValue(p) << " ";
+				}
 
 				string point_name = clusters[i].getPoint(j).getName();
 
-				if(point_name != "")
+				if (point_name != "") {
 					cout << "- " << point_name;
-
+				}
 				cout << endl;
 			}
 
 			cout << "Cluster values: ";
 
-			for(int j = 0; j < total_values; j++)
+			for (int j = 0; j < total_values; j++) {
 				cout << clusters[i].getCentralValue(j) << " ";
-
-			cout << "\n\n";
-            cout << "TOTAL EXECUTION TIME = "<<std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()<<"\n";
-            
-            cout << "TIME PHASE 1 = "<<std::chrono::duration_cast<std::chrono::microseconds>(end_phase1-begin).count()<<"\n";
-            
-            cout << "TIME PHASE 2 = "<<std::chrono::duration_cast<std::chrono::microseconds>(end-end_phase1).count()<<"\n";
+			}
 		}
+		cout << "\n\n";
+    cout << "TOTAL EXECUTION TIME = "<<std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()<<"\n";
+ 		cout << "TIME PHASE 1 = "<<std::chrono::duration_cast<std::chrono::microseconds>(end_phase1-begin).count()<<"\n";
+		cout << "TIME PHASE 2 = "<<std::chrono::duration_cast<std::chrono::microseconds>(end-end_phase1).count()<<"\n";
 	}
 };
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	srand (time(NULL));
-
 	int total_points, total_values, K, max_iterations, has_name;
-
 	cin >> total_points >> total_values >> K >> max_iterations >> has_name;
 
 	vector<Point> points;
 	string point_name;
 
-	for(int i = 0; i < total_points; i++)
-	{
+	for (int i = 0; i < total_points; i++) {
 		vector<double> values;
 
-		for(int j = 0; j < total_values; j++)
-		{
+		for (int j = 0; j < total_values; j++) {
 			double value;
 			cin >> value;
 			values.push_back(value);
 		}
 
-		if(has_name)
-		{
+		if (has_name) {
 			cin >> point_name;
 			Point p(i, values, point_name);
 			points.push_back(p);
 		}
-		else
-		{
+		else {
 			Point p(i, values);
 			points.push_back(p);
 		}
 	}
-
 	KMeans kmeans(K, total_points, total_values, max_iterations);
 	kmeans.run(points);
 
