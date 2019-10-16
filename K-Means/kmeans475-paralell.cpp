@@ -15,8 +15,21 @@
 #include <pthread.h>
 using namespace std;
 
+#ifdef USE_SPINLOCK
+	#define LOCK_TYPE pthread_spinlock_t
+	#define LOCK(x) pthread_spin_lock(&(x))
+	#define UNLOCK(x) pthread_spin_unlock(&(x))
+	#define INITIALIZE(x) pthread_spin_init(&(x), NULL)
+#else
+	#define LOCK_TYPE pthread_mutex_t
+	#define LOCK(x) pthread_mutex_lock(&(x))
+	#define UNLOCK(x) pthread_mutex_unlock(&(x))
+	#define INITIALIZE(x) pthread_mutex_init(&(x), NULL)
+#endif
+
+
 static unsigned long a = 123456789, b = 362436069, c = 521288629;
-unsigned long xorshf96(void) {
+unsigned long xorshf96() {
 	unsigned long t;
   a ^= a << 16;
   a ^= a >> 5;
@@ -83,7 +96,6 @@ private:
 	int id_cluster;
 	vector<double> central_values;
 	vector<Point> points;
-	pthread_mutex_t tsx_mtx;
 
 public:
 	Cluster(int id_cluster, Point point) {
@@ -95,11 +107,22 @@ public:
 		}
 
 		points.push_back(point);
-		pthread_mutex_init(&tsx_mtx, 0);
 	}
 
 	void addPoint(Point point) {
 		points.push_back(point);
+	}
+
+	void safeAddPoint(Point point, LOCK_TYPE *tsx_mtx) {
+		LOCK(*tsx_mtx);
+		addPoint(point);
+		UNLOCK(*tsx_mtx);
+	}
+
+	void safeRemovePoint(int id_point, LOCK_TYPE *tsx_mtx) {
+		LOCK(*tsx_mtx);
+		removePoint(id_point);
+		UNLOCK(*tsx_mtx);
 	}
 
 	bool removePoint(int id_point) {
@@ -133,18 +156,6 @@ public:
 	int getID() {
 		return id_cluster;
 	}
-
-	void safeAddPoint(Point point) {
-		pthread_mutex_lock(&tsx_mtx);
-		addPoint(point);
-		pthread_mutex_unlock(&tsx_mtx);
-	}
-
-	bool safeRemovePoint(int id_point) {
-		pthread_mutex_lock(&tsx_mtx);
-		removePoint(id_point);
-		pthread_mutex_unlock(&tsx_mtx);
-	}
 };
 
 class KMeans {
@@ -152,15 +163,17 @@ private:
 	int K; // number of clusters
 	int total_values, total_points, max_iterations;
 	vector<Cluster> clusters;
+	LOCK_TYPE* tsx_mtx;
 
 	// return ID of nearest center (uses euclidean distance)
 	int getIDNearestCenter(Point point) {
 		double sum = 0.0, min_dist;
 		int id_cluster_center = 0;
 
+		#pragma omp simd
 		for (int i = 0; i < total_values; i++) {
-			sum += pow(clusters[0].getCentralValue(i) -
-					   point.getValue(i), 2.0);
+			int val = clusters[0].getCentralValue(i) - point.getValue(i);
+			sum += val * val;
 		}
 
 		min_dist = sqrt(sum);
@@ -169,8 +182,10 @@ private:
 			double dist;
 			sum = 0.0;
 
+			#pragma omp simd
 			for (int j = 0; j < total_values; j++) {
-				sum += pow(clusters[i].getCentralValue(j) - point.getValue(j), 2.0);
+				int val = clusters[i].getCentralValue(j) - point.getValue(j);
+				sum += val * val;
 			}
 
 			dist = sqrt(sum);
@@ -189,6 +204,15 @@ public:
 		this->total_points = total_points;
 		this->total_values = total_values;
 		this->max_iterations = max_iterations;
+
+		this -> tsx_mtx = new LOCK_TYPE[K];
+		for (int i = 0; i < K; i++) {
+			INITIALIZE(this -> tsx_mtx[i]);
+		}
+	}
+
+	~KMeans() {
+		delete [] tsx_mtx;
 	}
 
 	void run(vector<Point>& points) {
@@ -204,21 +228,13 @@ public:
 			if (find(prohibited_indexes.begin(), prohibited_indexes.end(), index_point) == prohibited_indexes.end()) {
 				prohibited_indexes.push_back(index_point);
 				points[index_point].setCluster(i);
+				Cluster cluster(i, points[index_point]);
+				clusters.push_back(cluster);
 			}
 			else {
 				i--;
 			}
 		}
-		cout << prohibited_indexes.size() << " " << K << endl;
-		tbb::parallel_for(tbb::blocked_range<size_t>(0, K), [&](tbb::blocked_range<size_t>& r) {
-			for (size_t i = r.begin(); i != r.end(); i++) {
-				int index_point = prohibited_indexes[i];
-				cout << index_point << endl;
-				Cluster cluster(i, points[index_point]);
-				clusters.push_back(cluster);
-			}
-    }, tbb::simple_partitioner());
-    
     auto end_phase1 = chrono::high_resolution_clock::now();
     //end
 
@@ -226,7 +242,6 @@ public:
 		int iter = 1;
 		while(true) {
 			bool done = true;
-
 			// associates each point to the nearest center
 			tbb::parallel_for(tbb::blocked_range<size_t>(0, total_points), [&](tbb::blocked_range<size_t>& r) {
 				for (size_t i = r.begin(); i != r.end(); i++) {
@@ -235,11 +250,11 @@ public:
 
 					if (id_old_cluster != id_nearest_center) {
 						if (id_old_cluster != -1) {
-							clusters[id_old_cluster].safeRemovePoint(points[i].getID()); //TODO: Wrap in a synchronzied block
+							clusters[id_old_cluster].safeRemovePoint(points[i].getID(), &this -> tsx_mtx[id_old_cluster]); //TODO: Wrap in a synchronzied block
 						}
 
 						points[i].setCluster(id_nearest_center);
-						clusters[id_nearest_center].safeAddPoint(points[i]);  //TODO: Wrap in a synchronzied block
+						clusters[id_nearest_center].safeAddPoint(points[i], &this -> tsx_mtx[id_nearest_center]);  //TODO: Wrap in a synchronzied block
 						done = false;
 					}
 				}
@@ -271,7 +286,7 @@ public:
     auto end = chrono::high_resolution_clock::now();
 
 		// shows elements of clusters
-		for (int i = 0; i < K; i++) {
+		/* for (int i = 0; i < K; i++) {
 			int total_points_cluster =  clusters[i].getTotalPoints();
 
 			cout << "Cluster " << clusters[i].getID() + 1 << endl;
@@ -296,6 +311,7 @@ public:
 			}
 		}
 		cout << "\n\n";
+		*/
     cout << "TOTAL EXECUTION TIME = "<<std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()<<"\n";
  		cout << "TIME PHASE 1 = "<<std::chrono::duration_cast<std::chrono::microseconds>(end_phase1-begin).count()<<"\n";
 		cout << "TIME PHASE 2 = "<<std::chrono::duration_cast<std::chrono::microseconds>(end-end_phase1).count()<<"\n";

@@ -264,7 +264,7 @@ public:
         auto end = chrono::high_resolution_clock::now();
 
 		// shows elements of clusters
-		for(int i = 0; i < K; i++)
+		/*for(int i = 0; i < K; i++)
 		{
 			int total_points_cluster =  clusters[i].getTotalPoints();
 
@@ -288,7 +288,7 @@ public:
 			for(int j = 0; j < total_values; j++)
 				cout << clusters[i].getCentralValue(j) << " ";
 		}
-      cout << "\n\n";
+      cout << "\n\n"; */
       cout << "TOTAL EXECUTION TIME = "<<std::chrono::duration_cast<std::chrono::microseconds>(end-begin).count()<<"\n";
  			cout << "TIME PHASE 1 = "<<std::chrono::duration_cast<std::chrono::microseconds>(end_phase1-begin).count()<<"\n";
 			cout << "TIME PHASE 2 = "<<std::chrono::duration_cast<std::chrono::microseconds>(end-end_phase1).count()<<"\n";
