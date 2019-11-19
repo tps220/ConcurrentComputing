@@ -6,6 +6,21 @@
 #include <queue>
 using namespace std;
 
+static unsigned long x=123456789, y=362436069, z=521288629;
+inline unsigned long xorshf96(void) {
+  unsigned long t;
+  x ^= x << 16;
+  x ^= x >> 5;
+  x ^= x << 1;
+
+  t = x;
+  x = y;
+  y = z;
+  z = t ^ x ^ y;
+
+  return z;
+}
+
 #define LOCK_TYPE pthread_rwlock_t
 #define WRITE_LOCK(x) pthread_rwlock_wrlock(&(x))
 #define READ_LOCK(x) pthread_rwlock_rdlock(&(x))
@@ -18,7 +33,6 @@ template <typename T>
 class Table {
 public:
   volatile T** elements;
-
 
   static bool isOccupied(volatile T val) {
     return val != EMPTY;
@@ -34,6 +48,7 @@ public:
       elements[i] = new volatile T[WIDTH];
     }
   }
+
   bool find(T val, int idx) {
     volatile T* bucket = this -> elements[idx];
     for (int i = 0; i < WIDTH; i++) {
@@ -71,6 +86,7 @@ public:
   T getElement(int idx, int slot) {
     return this -> elements[idx][slot];
   }
+
   bool isOccupied(int idx, int slot) {
     return isOccupied(this -> elements[idx][slot]);
   }
@@ -140,6 +156,7 @@ public:
       return true;
     }
   }
+
   bool remove(T val) {
     READ_LOCK(global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
@@ -155,6 +172,7 @@ public:
     UNLOCK(global_lock);
     return slot != -1;
   }
+
   bool contains(T val) {
     READ_LOCK(global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
@@ -186,12 +204,14 @@ public:
     this -> table1 = new Table<T>(buckets);
     this -> table2 = new Table<T>(buckets);
   }
+
 private:
   volatile unsigned int buckets;
   Table<T>* table1;
   Table<T>* table2;
   LOCK_TYPE* locks;
   LOCK_TYPE global_lock;
+
   int hash(T val, int function) {
     switch (function) { 
       case 1: 
@@ -200,6 +220,7 @@ private:
         return (val / this -> buckets) % this -> buckets;
     }
   }
+
   void lock_two(int idx1, int idx2) {
     if (idx1 < idx2) {
       WRITE_LOCK(this -> locks[idx1]);
@@ -213,6 +234,7 @@ private:
       WRITE_LOCK(this -> locks[idx1]);
     }
   }
+
   void lock_two_read_only(int idx1, int idx2) {
     if (idx1 < idx2) {
       READ_LOCK(this -> locks[idx1]);
@@ -331,15 +353,15 @@ private:
       q.pop();
 
       volatile T* bucket = this -> getBucket(point); 
-      const int start = point.pathcode % WIDTH;
+      const int start_slot = xorshf96() % WIDTH;
       for (int i = 0; i < WIDTH; i++) {
-        const int slot = (start + i) % WIDTH;
+        const int slot = (start_slot + i) % WIDTH;
         if (!Table<T>::isOccupied(bucket[slot])) {
           point.pathcode = point.pathcode * WIDTH + slot;
           return point;
         }
       
-        if (point.depth < MAX_SEARCH_DEPTH) {
+        if (point.depth < MAX_SEARCH_DEPTH - 1) {
           q.push(
             nextPoint(point, slot)
           );
@@ -419,8 +441,9 @@ private:
       depth = point.depth;
     }
 
+    std::cerr << "DEPTH: " << depth << std::endl;
     for (int i = 0; i <= depth; i++) {
-      std::cout << "INDEX " << path.index[i] << " TABLE: " << path.table[i] << " SLOT: " << path.slot[i] << std::endl;
+      std::cerr << "INDEX " << path.index[i] << " TABLE: " << path.table[i] << " SLOT: " << path.slot[i] << std::endl;
     }
 
     if (depth == 0) {
@@ -435,7 +458,6 @@ private:
         unlock_two(idx1, idx2);
         return { RETRY, 0, 0, 0 };
       }
-      unlock_two(idx1, idx2);
     }
 
     while (depth > 0) {
@@ -450,7 +472,8 @@ private:
         if (table2 -> isOccupied(path.index[depth], path.slot[depth]) //if to is occupied, error
           || !table1 -> isOccupied(path.index[depth - 1], path.slot[depth - 1])  //if from is not occupied, error
           || this -> hash(table1 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 2) != path.index[depth]) { //else if element has changed and hash does not equal
-        
+          
+          std::cout << "FAILED HERE: " << table2 -> isOccupied(path.index[depth], path.slot[depth] << " " << !table1 -> isOccupied(path.index[depth - 1], path.slot[depth - 1] << " " << this -> hash(table1 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 2) != path.index[depth] << std::endl;
           if (depth == 1) {
             unlock_three(idx1, idx2, path.index[depth]);
           }
