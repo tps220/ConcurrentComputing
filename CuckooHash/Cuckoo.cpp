@@ -3,14 +3,6 @@
 #include "Cuckoo.hpp"
 #include <queue>
 
-template <typename T>
-Table<T>::Table(unsigned int size) {
-  this -> elements = new T*[size];
-  for (int i = 0; i < size; i++) {
-    elements[i] = new T[WIDTH];
-  }
-}
-
 template<typename T>
 Cuckoo<T>::Cuckoo(unsigned int buckets) : buckets(buckets) {
   this -> locks = new LOCK_TYPE[buckets];
@@ -46,16 +38,6 @@ bool Cuckoo<T>::contains(T val) {
   bool retval = table1 -> find(val, idx1) || table2 -> find(val, idx2);
   unlock_two(idx1, idx2);
   return retval;
-}
-
-template<typename T>
-bool isOccupied(T val) {
-  return val != EMPTY;
-}
-
-template<typename T>
-bool isOccupied(T* bucket, int slot) {
-  return isOccupied(bucket[slot]);
 }
 
 template<typename T>
