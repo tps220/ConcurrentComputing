@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
     size += data[i].nb_added - data[i].nb_removed;
   }
 
-  printf("Set size      : %d (expected: %d)\n", SET_TYPE::size(set), size);
+  printf("Set size      : %d (expected: %d)\n", set -> size(), size);
   printf("Duration      : %d (ms)\n", duration);
   printf("#txs          : %lu (%f / s)\n", reads + updates, (reads + updates) * 1000.0 / duration);
   

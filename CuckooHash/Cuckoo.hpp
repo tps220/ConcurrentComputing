@@ -7,36 +7,37 @@
 using namespace std;
 
 #define LOCK_TYPE pthread_rwlock_t
-#define WRITE_LOCK(x) pthread_rwlock_wrlock((x))
-#define READ_LOCK(x) pthread_rwlock_rdlock((x))
-#define UNLOCK(x) pthread_rwlock_unlock((x))
+#define WRITE_LOCK(x) pthread_rwlock_wrlock(&(x))
+#define READ_LOCK(x) pthread_rwlock_rdlock(&(x))
+#define UNLOCK(x) pthread_rwlock_unlock(&(x))
 #define WIDTH 6
 #define MAX_SEARCH_DEPTH 10
 #define EMPTY 0
 
-template<typename T>
-bool isOccupied(T val) {
-  return val != EMPTY;
-}
-
-template<typename T>
-bool isOccupied(T* bucket, int slot) {
-  return isOccupied(bucket[slot]);
-}
-
 template <typename T>
 class Table {
+public:
   volatile T** elements;
+
+
+  static bool isOccupied(volatile T val) {
+    return val != EMPTY;
+  }
+
+  static bool isOccupied(T* bucket, int slot) {
+    return isOccupied(bucket[slot]);
+  }
+
   Table(unsigned int size) {
-    this -> elements = new T*[size];
+    this -> elements = new volatile T*[size];
     for (int i = 0; i < size; i++) {
-      elements[i] = new T[WIDTH];
+      elements[i] = new volatile T[WIDTH];
     }
   }
   bool find(T val, int idx) {
-    T* bucket = this -> elements[idx];
-    for (int i = 0; i < this -> width; i++) {
-      if (this -> bucket[i] == val) {
+    volatile T* bucket = this -> elements[idx];
+    for (int i = 0; i < WIDTH; i++) {
+      if (bucket[i] == val) {
         return true;
       }
     }
@@ -44,22 +45,27 @@ class Table {
   }
 
   int findSlot(T val, int idx) {
-    T* bucket = this -> element[idx];
-    for (int i = 0; i < this -> width; i++) {
-      if (this -> bucket[i] == val) {
+    volatile T* bucket = this -> elements[idx];
+    for (int i = 0; i < WIDTH; i++) {
+      if (bucket[i] == val) {
         return i;
       }
     }
     return -1;
   }
+  
   int isAvailable(int idx) {
-    T* bucket = this -> elements[idx];
-    for (int i = 0; i < this -> width; i++) {
-      if (!isOccupied(this -> buckets[i])) {
+    volatile T* bucket = this -> elements[idx];
+    for (int i = 0; i < WIDTH; i++) {
+      if (!isOccupied(bucket[i])) {
         return i;
       }
     }
     return -1;
+  }
+
+  bool isAvailable(int idx, int slot) {
+    return !isOccupied(this -> elements[idx][slot]);
   }
 
   T getElement(int idx, int slot) {
@@ -104,7 +110,7 @@ public:
   bool insert(T val) {
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     while (true) {
-      Result result = insert(val);
+      Result result = insert(val, idx1, idx2);
       //Possbile failures
       if (result.status == DUPLICATE) {
         return false;
@@ -131,10 +137,10 @@ public:
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     this -> lock_two(idx1, idx2);
     int slot;
-    if ((slot = table1 -> findIndex(val, idx1)) != -1) {
+    if ((slot = table1 -> findSlot(val, idx1)) != -1) {
       table1 -> elements[idx1][slot] = EMPTY;
     }
-    else if ((slot = table2 -> findIndex(val, idx2)) != -1) {
+    else if ((slot = table2 -> findSlot(val, idx2)) != -1) {
       table2 -> elements[idx2][slot] = EMPTY;
     }
     this -> unlock_two(idx1, idx2);
@@ -166,13 +172,13 @@ public:
     }
     pthread_rwlock_init(&this -> global_lock, NULL);
 
-    this -> table1(buckets);
-    this -> table2(buckets);
+    this -> table1 = new Table<T>(buckets);
+    this -> table2 = new Table<T>(buckets);
   }
 private:
   volatile unsigned int buckets;
-  volatile Table<T> table1;
-  volatile Table<T> table2;
+  Table<T>* table1;
+  Table<T>* table2;
   LOCK_TYPE* locks;
   LOCK_TYPE global_lock;
   int hash(T val, int function) {
@@ -214,11 +220,11 @@ private:
   }
   void unlock_two(int idx1, int idx2) {
     if (idx1 != idx2) {
-      UNLOCK(this -> table1 -> locks[idx1]);
-      UNLOCK(this -> table2 -> locks[idx2]);
+      UNLOCK(this -> locks[idx1]);
+      UNLOCK(this -> locks[idx2]);
     }
     else {
-      UNLOCK(this -> table1 -> locks[idx1]);
+      UNLOCK(this -> locks[idx1]);
     }
   }
   void unlock_three(int idx1, int idx2, int idx3) {
@@ -307,11 +313,11 @@ private:
       Point point = q.front();
       q.pop();
 
-      T* bucket = this -> getBucket(point); 
+      volatile T* bucket = this -> getBucket(point); 
       const int start = point.pathcode % WIDTH;
       for (int i = 0; i < WIDTH; i++) {
         const int slot = (start + i) % WIDTH;
-        if (!isOccupied(bucket[slot])) {
+        if (!Table<T>::isOccupied(bucket[slot])) {
           point.pathcode = point.pathcode * WIDTH + slot;
           return point;
         }
@@ -326,7 +332,7 @@ private:
     return Point(-1, -1, -1, -1);
   }
 
-  T* getBucket(Point point) {
+  volatile T* getBucket(Point point) {
     if (point.table == 1) {
       return this -> table1 -> elements[point.index];
     }
@@ -476,23 +482,23 @@ private:
     }
 
     this -> buckets = this -> buckets * 4;
-    Table<T> t1 = new Table<T>(this -> buckets);
-    Table<T> t2 = new Table<T>(this -> buckets);
+    Table<T> *t1 = new Table<T>(this -> buckets);
+    Table<T> *t2 = new Table<T>(this -> buckets);
 
     for (int i = 0; i < this -> buckets; i++) {
       for (int j = 0; j < WIDTH; j++) {
-        T val = this -> table1[i][j];
-        if (isOccupied(val)) {
+        T val = this -> table1 -> elements[i][j];
+        if (Table<T>::isOccupied(val)) {
           int idx = this -> hash(val, 1);
           int slot = this -> table1 -> isAvailable(idx);
-          t1[idx][slot] = val;
+          t1 -> elements[idx][slot] = val;
         }
 
-        val = this -> table2[i][j];
-        if (isOccupied(val)) {
+        val = this -> table2 -> elements[i][j];
+        if (Table<T>::isOccupied(val)) {
           int idx = this -> hash(val, 2);
           int slot = this -> table1 -> isAvailable(idx);
-          t2[idx][slot] = val;
+          t2 -> elements[idx][slot] = val;
         }
       }
     }

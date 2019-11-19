@@ -47,7 +47,7 @@ ExperimentResult Parallelize::run(
 
   for (int i = 0; i < this -> nb_threads; i++) {
     threads.push_back(
-      std::thread(execute_local_txs, &thread_local_data[i], set);
+      std::thread(execute_local_txs, &thread_local_data[i], set)
     );
   }
 

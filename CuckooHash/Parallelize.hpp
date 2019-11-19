@@ -41,4 +41,4 @@ public:
   );
 };
 
-void execute_local_txs(Thread_Data *thread);
+void execute_local_txs(Thread_Data *thread, Cuckoo<int>* set);
