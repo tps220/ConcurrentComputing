@@ -89,7 +89,8 @@ void execute_local_txs(Thread_Data *thread, Cuckoo<int>* set) {
     
   while (stop == 0) {
     if (unext) { //write tx
-      if (last < 0) { //add        
+      bool insert = (rand_range_re(&data -> seed, data -> range) % 100) < 60;
+      if (insert) { //add        
         val = rand_range_re(&data -> seed, data -> range - 1) + 1;
         if (set -> insert(val)) {
           data -> nb_added++;

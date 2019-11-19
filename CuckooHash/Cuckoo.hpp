@@ -110,16 +110,22 @@ public:
   bool insert(T val) {
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     while (true) {
+      READ_LOCK(global_lock);
       Result result = insert(val, idx1, idx2);
       //Possbile failures
       if (result.status == DUPLICATE) {
+        UNLOCK(global_lock);
         return false;
       }
       else if (result.status == RESIZE) {
+        UNLOCK(global_lock);
         resize();
+        std::cout << "RESIZE OP" << std::endl;
         continue;
       }
       else if (result.status == RETRY) {
+        std::cout << "RETRY" << std::endl;
+        UNLOCK(global_lock);
         continue;
       }
 
@@ -130,10 +136,12 @@ public:
         this -> table2 -> elements[result.index][result.slot] = val;
       }
       unlock_two(idx1, idx2);
+      UNLOCK(global_lock);
       return true;
     }
   }
   bool remove(T val) {
+    READ_LOCK(global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     this -> lock_two(idx1, idx2);
     int slot;
@@ -144,13 +152,16 @@ public:
       table2 -> elements[idx2][slot] = EMPTY;
     }
     this -> unlock_two(idx1, idx2);
+    UNLOCK(global_lock);
     return slot != -1;
   }
   bool contains(T val) {
+    READ_LOCK(global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     lock_two(idx1, idx2);
     bool retval = table1 -> find(val, idx1) || table2 -> find(val, idx2);
     unlock_two(idx1, idx2);
+    UNLOCK(global_lock);
     return retval;
   }
 
@@ -215,9 +226,11 @@ private:
       READ_LOCK(this -> locks[idx1]);
     }
   }
+
   void unlock_one(int idx) {
     UNLOCK(this -> locks[idx]);
   }
+
   void unlock_two(int idx1, int idx2) {
     if (idx1 != idx2) {
       UNLOCK(this -> locks[idx1]);
@@ -227,6 +240,7 @@ private:
       UNLOCK(this -> locks[idx1]);
     }
   }
+
   void unlock_three(int idx1, int idx2, int idx3) {
     if (idx1 != idx2 && idx2 != idx3 && idx1 != idx3) {
       UNLOCK(this -> locks[idx1]);
@@ -245,6 +259,7 @@ private:
       UNLOCK(this -> locks[idx2]);
     }
   }
+
   void lock_three(int idx1, int idx2, int idx3) {
     if (idx1 < idx2) {
       if (idx1 < idx3) {
@@ -283,6 +298,7 @@ private:
       }
     }
   }
+
   Point nextPoint(Point point, int slot) {
     if (point.table == 1) {
       return Point(
@@ -305,6 +321,7 @@ private:
       point.depth + 1 //increase depth by 1
     );
   }
+
   Point search(const int idx1, const int idx2) {
     std::queue<Point> q;
     q.push(Point(1, idx1, 0, 0));
@@ -400,6 +417,10 @@ private:
 
     if (depth == -1) {
       depth = point.depth;
+    }
+
+    for (int i = 0; i <= depth; i++) {
+      std::cout << "INDEX " << path.index[i] << " TABLE: " << path.table[i] << " SLOT: " << path.slot[i] << std::endl;
     }
 
     if (depth == 0) {
@@ -505,5 +526,6 @@ private:
 
     this -> table1 = t1;
     this -> table2 = t2;
+    UNLOCK(global_lock);
   }
 };
