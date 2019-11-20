@@ -127,24 +127,19 @@ public:
   bool insert(T val) {
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     while (true) {
-      std::cout << "START INSERT" << std::endl;
       READ_LOCK(global_lock);
-      std::cout << "START OP" << std::endl;
       Result result = insert(val, idx1, idx2);
-      std::cout << "GOT A RESULT" << std::endl;
       //Possbile failures
       if (result.status == DUPLICATE) {
         UNLOCK(global_lock);
         return false;
       }
       else if (result.status == RESIZE) {
-        std::cout << "RESIZE OP" << std::endl;
         UNLOCK(global_lock);
         resize();
         continue;
       }
       else if (result.status == RETRY) {
-        std::cout << "RETRY" << std::endl;
         UNLOCK(global_lock);
         continue;
       }
@@ -157,13 +152,11 @@ public:
       }
       unlock_two(idx1, idx2);
       UNLOCK(global_lock);
-      std::cout << "RETURNED INSERT" << std::endl;
       return true;
     }
   }
 
   bool remove(T val) {
-    std::cout << "REMOVE OP" << std::endl;
     READ_LOCK(global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     this -> lock_two(idx1, idx2);
@@ -228,7 +221,6 @@ private:
   }
 
   void lock_two(int idx1, int idx2) {
-    std::cout << "LOCKING TWO " << idx1 << " " << idx2;
     if (idx1 < idx2) {
       WRITE_LOCK(this -> locks[idx1]);
       WRITE_LOCK(this -> locks[idx2]);
@@ -257,12 +249,10 @@ private:
   }
 
   void unlock_one(int idx) {
-      std::cout << "UNLOCK ONE " << idx << std::endl;
     UNLOCK(this -> locks[idx]);
   }
 
   void unlock_two(int idx1, int idx2) {
-    std::cout << "UNLOCKING 2 " << idx1 << " " << idx2 << std::endl;
     if (idx1 != idx2) {
       UNLOCK(this -> locks[idx1]);
       UNLOCK(this -> locks[idx2]);
@@ -273,7 +263,6 @@ private:
   }
 
   void unlock_three(int idx1, int idx2, int idx3) {
-    std::cout << "UNLOCKING 3 " << idx1 << " " << idx2 << " " << idx3 << std::endl;
     if (idx1 != idx2 && idx2 != idx3 && idx1 != idx3) {
       UNLOCK(this -> locks[idx1]);
       UNLOCK(this -> locks[idx2]);
@@ -293,7 +282,6 @@ private:
   }
 
   void lock_three(int idx1, int idx2, int idx3) {
-    std::cout << "LOCKING 3 " << idx1 << " " << idx2 << " " << idx3 << std::endl;
     if (idx1 == idx2 && idx2 == idx3) {
         WRITE_LOCK(this -> locks[idx1]);
         return;
@@ -378,9 +366,7 @@ private:
       volatile T* bucket = this -> getBucket(point); 
       T val = bucket[point.pathcode % WIDTH];
 
-      std::cout << point.index << " " << point.pathcode << " " << point.table << " " << val << std::endl;
       if (paths.find(val) != paths.end()) {
-          std::cout << "CYCLE" << std::endl;
           return Point(-1, -1, -1, -1);
       }
       paths.insert(val);
@@ -427,7 +413,6 @@ private:
 
     Point point = search(idx1, idx2);
     if (point.pathcode == -1) {
-        std::cout << "COULD NOT FIND PATH" << std::endl;
         return { RESIZE, 0, 0, 0 };
     }
 
@@ -474,11 +459,6 @@ private:
       depth = point.depth;
     }
 
-    std::cerr << "DEPTH: " << depth << std::endl;
-    for (int i = 0; i <= depth; i++) {
-      std::cerr << "INDEX " << path.index[i] << " SLOT: " << path.slot[i] << std::endl;
-    }
-
     if (depth == 0) {
       lock_two(idx1, idx2);
       if (path.table[0] == 1 && this -> table1 -> isAvailable(path.index[0], path.slot[0])) {
@@ -506,7 +486,6 @@ private:
           || !table1 -> isOccupied(path.index[depth - 1], path.slot[depth - 1])  //if from is not occupied, error
           || this -> hash(table1 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 2) != path.index[depth]) { //else if element has changed and hash does not equal
           
-          std::cout << "FAILED HERE 1: " << (int)table2 -> isOccupied(path.index[depth], path.slot[depth]) << " " << (int)!table1 -> isOccupied(path.index[depth - 1], path.slot[depth - 1]) << " " << (int)(this -> hash(table1 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 2) != path.index[depth]) << std::endl;
           if (depth == 1) {
             unlock_three(idx1, idx2, path.index[depth]);
           }
@@ -524,7 +503,6 @@ private:
           || !table2 -> isOccupied(path.index[depth - 1], path.slot[depth - 1])
           || this -> hash(table2 -> getElement(path.index[depth - 1], path.slot[depth -1]), 1) != path.index[depth]) {
 
-          std::cout << "FAILED HERE 2: " << table1 -> isOccupied(path.index[depth], path.slot[depth]) << " " << !table2 -> isOccupied(path.index[depth - 1], path.slot[depth - 1]) << " " << (this -> hash(table2 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 1) != path.index[depth]) << std::endl;
           if (depth == 1) {
             unlock_three(idx1, idx2, path.index[depth]);
           }
