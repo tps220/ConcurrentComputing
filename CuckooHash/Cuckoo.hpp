@@ -22,10 +22,10 @@ inline unsigned long xorshf96(void) {
   return z;
 }
 
-#define LOCK_TYPE pthread_rwlock_t
-#define WRITE_LOCK(x) pthread_rwlock_wrlock(&(x))
-#define READ_LOCK(x) pthread_rwlock_rdlock(&(x))
-#define UNLOCK(x) pthread_rwlock_unlock(&(x))
+#define LOCK_TYPE pthread_spinlock_t
+#define WRITE_LOCK(x) pthread_spin_lock(&(x))
+#define READ_LOCK(x) pthread_spin_lock(&(x))
+#define UNLOCK(x) pthread_spin_unlock(&(x))
 #define WIDTH 6
 #define MAX_SEARCH_DEPTH 7
 #define EMPTY 0
@@ -127,20 +127,20 @@ public:
   bool insert(T val) {
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     while (true) {
-      READ_LOCK(global_lock);
+      pthread_rwlock_rdlock(&global_lock);
       Result result = insert(val, idx1, idx2);
       //Possbile failures
       if (result.status == DUPLICATE) {
-        UNLOCK(global_lock);
+        pthread_rwlock_unlock(&global_lock);
         return false;
       }
       else if (result.status == RESIZE) {
-        UNLOCK(global_lock);
+        pthread_rwlock_unlock(&global_lock);
         resize();
         continue;
       }
       else if (result.status == RETRY) {
-        UNLOCK(global_lock);
+        pthread_rwlock_unlock(&global_lock);
         continue;
       }
 
@@ -151,13 +151,13 @@ public:
         this -> table2 -> elements[result.index][result.slot] = val;
       }
       unlock_two(idx1, idx2);
-      UNLOCK(global_lock);
+      pthread_rwlock_unlock(&global_lock);
       return true;
     }
   }
 
   bool remove(T val) {
-    READ_LOCK(global_lock);
+    pthread_rwlock_rdlock(&global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     this -> lock_two(idx1, idx2);
     int slot;
@@ -168,17 +168,17 @@ public:
       table2 -> elements[idx2][slot] = EMPTY;
     }
     this -> unlock_two(idx1, idx2);
-    UNLOCK(global_lock);
+    pthread_rwlock_unlock(&global_lock);
     return slot != -1;
   }
 
   bool contains(T val) {
-    READ_LOCK(global_lock);
+    pthread_rwlock_rdlock(&global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     lock_two(idx1, idx2);
     bool retval = table1 -> find(val, idx1) || table2 -> find(val, idx2);
     unlock_two(idx1, idx2);
-    UNLOCK(global_lock);
+    pthread_rwlock_unlock(&global_lock);
     return retval;
   }
 
@@ -196,7 +196,7 @@ public:
   Cuckoo(unsigned int buckets) : buckets(buckets) {
     this -> locks = new LOCK_TYPE[buckets];
     for (int i = 0; i < buckets; i++) {
-      pthread_rwlock_init(&this -> locks[i], NULL);
+      pthread_spin_init(&this -> locks[i], NULL);
     }
     pthread_rwlock_init(&this -> global_lock, NULL);
 
@@ -209,7 +209,7 @@ private:
   Table<T>* table1;
   Table<T>* table2;
   LOCK_TYPE* locks;
-  LOCK_TYPE global_lock;
+  pthread_rwlock_t global_lock;
 
   int hash(T val, int function) {
     switch (function) { 
@@ -533,9 +533,9 @@ private:
 
   void resize() {
     const unsigned int old_capacity = this -> buckets;
-    WRITE_LOCK(global_lock);
+    pthread_rwlock_wrlock(&global_lock);
     if (old_capacity != this -> buckets) {
-      UNLOCK(global_lock);
+      pthread_rwlock_unlock(&global_lock);
       return;
     }
 
@@ -564,11 +564,11 @@ private:
 
     LOCK_TYPE* new_locks = new LOCK_TYPE[this -> buckets];
     for (int i = 0; i < this -> buckets; i++) {
-      pthread_rwlock_init(&new_locks[i], NULL);
+      pthread_spin_init(&new_locks[i], NULL);
     }
     this -> locks = new_locks;
     this -> table1 = t1;
     this -> table2 = t2;
-    UNLOCK(global_lock);
+    pthread_rwlock_unlock(global_lock);
   }
 };
