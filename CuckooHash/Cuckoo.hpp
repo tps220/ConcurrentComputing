@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <queue>
+#include <unordered_set>
 using namespace std;
 
 static unsigned long x=123456789, y=362436069, z=521288629;
@@ -45,7 +46,7 @@ public:
   Table(unsigned int size) {
     this -> elements = new volatile T*[size];
     for (int i = 0; i < size; i++) {
-      elements[i] = new volatile T[WIDTH];
+      elements[i] = new volatile T[WIDTH]();
     }
   }
 
@@ -126,17 +127,20 @@ public:
   bool insert(T val) {
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     while (true) {
+      std::cout << "START INSERT" << std::endl;
       READ_LOCK(global_lock);
+      std::cout << "START OP" << std::endl;
       Result result = insert(val, idx1, idx2);
+      std::cout << "GOT A RESULT" << std::endl;
       //Possbile failures
       if (result.status == DUPLICATE) {
         UNLOCK(global_lock);
         return false;
       }
       else if (result.status == RESIZE) {
+        std::cout << "RESIZE OP" << std::endl;
         UNLOCK(global_lock);
         resize();
-        std::cout << "RESIZE OP" << std::endl;
         continue;
       }
       else if (result.status == RETRY) {
@@ -153,11 +157,13 @@ public:
       }
       unlock_two(idx1, idx2);
       UNLOCK(global_lock);
+      std::cout << "RETURNED INSERT" << std::endl;
       return true;
     }
   }
 
   bool remove(T val) {
+    std::cout << "REMOVE OP" << std::endl;
     READ_LOCK(global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
     this -> lock_two(idx1, idx2);
@@ -222,6 +228,7 @@ private:
   }
 
   void lock_two(int idx1, int idx2) {
+    std::cout << "LOCKING TWO " << idx1 << " " << idx2;
     if (idx1 < idx2) {
       WRITE_LOCK(this -> locks[idx1]);
       WRITE_LOCK(this -> locks[idx2]);
@@ -250,10 +257,12 @@ private:
   }
 
   void unlock_one(int idx) {
+      std::cout << "UNLOCK ONE " << idx << std::endl;
     UNLOCK(this -> locks[idx]);
   }
 
   void unlock_two(int idx1, int idx2) {
+    std::cout << "UNLOCKING 2 " << idx1 << " " << idx2 << std::endl;
     if (idx1 != idx2) {
       UNLOCK(this -> locks[idx1]);
       UNLOCK(this -> locks[idx2]);
@@ -264,6 +273,7 @@ private:
   }
 
   void unlock_three(int idx1, int idx2, int idx3) {
+    std::cout << "UNLOCKING 3 " << idx1 << " " << idx2 << " " << idx3 << std::endl;
     if (idx1 != idx2 && idx2 != idx3 && idx1 != idx3) {
       UNLOCK(this -> locks[idx1]);
       UNLOCK(this -> locks[idx2]);
@@ -283,6 +293,19 @@ private:
   }
 
   void lock_three(int idx1, int idx2, int idx3) {
+    std::cout << "LOCKING 3 " << idx1 << " " << idx2 << " " << idx3 << std::endl;
+    if (idx1 == idx2 && idx2 == idx3) {
+        WRITE_LOCK(this -> locks[idx1]);
+        return;
+    }
+    else if (idx1 == idx2) {
+        lock_two(idx1, idx3);
+        return;
+    }
+    else if (idx2 == idx3) {
+        lock_two(idx1, idx2);
+        return;
+    }
     if (idx1 < idx2) {
       if (idx1 < idx3) {
         WRITE_LOCK(this -> locks[idx1]);
@@ -346,11 +369,20 @@ private:
 
   Point search(const int idx1, const int idx2) {
     std::queue<Point> q;
+    std::unordered_set<T> paths;
     q.push(Point(1, idx1, 0, 0));
     q.push(Point(2, idx2, 1, 0));
     while (!q.empty()) {
       Point point = q.front();
       q.pop();
+
+      T val = this -> getBucket(point)[point.pathcode % WIDTH];
+      std::cout << point.index << " " << point.pathcode << " " << point.table << " " << val << std::endl;
+      if (paths.find(val) != paths.end()) {
+          std::cout << "CYCLE" << std::endl;
+          return Point(-1, -1, -1, -1);
+      }
+      paths.insert(val);
 
       volatile T* bucket = this -> getBucket(point); 
       const int start_slot = xorshf96() % WIDTH;
@@ -391,11 +423,12 @@ private:
     if ((slot = this -> table2 -> isAvailable(idx2)) != -1) {
       return { SUCCESS, 2, idx2, slot };
     }
-    unlock_two(idx1, idx2);
+    this -> unlock_two(idx1, idx2);
 
     Point point = search(idx1, idx2);
     if (point.pathcode == -1) {
-      return { RESIZE, 0, 0, 0 };
+        std::cout << "COULD NOT FIND PATH" << std::endl;
+        return { RESIZE, 0, 0, 0 };
     }
 
     Path path;
@@ -443,7 +476,7 @@ private:
 
     std::cerr << "DEPTH: " << depth << std::endl;
     for (int i = 0; i <= depth; i++) {
-      std::cerr << "INDEX " << path.index[i] << " TABLE: " << path.table[i] << " SLOT: " << path.slot[i] << std::endl;
+      std::cerr << "INDEX " << path.index[i] << " SLOT: " << path.slot[i] << std::endl;
     }
 
     if (depth == 0) {
@@ -473,7 +506,7 @@ private:
           || !table1 -> isOccupied(path.index[depth - 1], path.slot[depth - 1])  //if from is not occupied, error
           || this -> hash(table1 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 2) != path.index[depth]) { //else if element has changed and hash does not equal
           
-          std::cout << "FAILED HERE: " << table2 -> isOccupied(path.index[depth], path.slot[depth] << " " << !table1 -> isOccupied(path.index[depth - 1], path.slot[depth - 1] << " " << this -> hash(table1 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 2) != path.index[depth] << std::endl;
+          std::cout << "FAILED HERE 1: " << (int)table2 -> isOccupied(path.index[depth], path.slot[depth]) << " " << (int)!table1 -> isOccupied(path.index[depth - 1], path.slot[depth - 1]) << " " << (int)(this -> hash(table1 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 2) != path.index[depth]) << std::endl;
           if (depth == 1) {
             unlock_three(idx1, idx2, path.index[depth]);
           }
@@ -489,8 +522,12 @@ private:
       else { //table2 from, table1 to
         if (table1 -> isOccupied(path.index[depth], path.slot[depth])
           || !table2 -> isOccupied(path.index[depth - 1], path.slot[depth - 1])
-          || !this -> hash(table2 -> getElement(path.index[depth - 1], path.slot[depth -1]), 1) != path.index[depth]) {
+          || this -> hash(table2 -> getElement(path.index[depth - 1], path.slot[depth -1]), 1) != path.index[depth]) {
 
+            std::cout << table1 -> elements[path.index[depth]][path.slot[depth]] << std::endl;
+            std::cout << table2 -> elements[path.index[depth - 1]][path.slot[depth - 1]] << std::endl;
+            std::cout << this -> hash(table2 -> getElement(path.index[depth-1], path.slot[depth - 1]), 1) << " " << path.index[depth] << std::endl;
+          std::cout << "FAILED HERE 2: " << table1 -> isOccupied(path.index[depth], path.slot[depth]) << " " << !table2 -> isOccupied(path.index[depth - 1], path.slot[depth - 1]) << " " << (this -> hash(table2 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 1) != path.index[depth]) << std::endl;
           if (depth == 1) {
             unlock_three(idx1, idx2, path.index[depth]);
           }
@@ -505,7 +542,7 @@ private:
       }
 
 
-      if (depth == 1) {
+      if (depth == 1 && path.index[depth] != idx1 && path.index[depth] != idx2) {
         unlock_one(path.index[depth]);
       }
       else {
@@ -513,7 +550,8 @@ private:
       }
       depth--;
     }
-
+    
+    std::cout << "SUCCESFULLY FINISHED" << std::endl;
     return { SUCCESS, path.table[0], path.index[0], path.slot[0] };
   }
 
@@ -526,27 +564,33 @@ private:
     }
 
     this -> buckets = this -> buckets * 4;
+
     Table<T> *t1 = new Table<T>(this -> buckets);
     Table<T> *t2 = new Table<T>(this -> buckets);
 
-    for (int i = 0; i < this -> buckets; i++) {
+    for (int i = 0; i < this -> buckets / 4; i++) {
       for (int j = 0; j < WIDTH; j++) {
         T val = this -> table1 -> elements[i][j];
         if (Table<T>::isOccupied(val)) {
           int idx = this -> hash(val, 1);
-          int slot = this -> table1 -> isAvailable(idx);
+          int slot = t1 -> isAvailable(idx);
           t1 -> elements[idx][slot] = val;
         }
 
         val = this -> table2 -> elements[i][j];
         if (Table<T>::isOccupied(val)) {
           int idx = this -> hash(val, 2);
-          int slot = this -> table1 -> isAvailable(idx);
+          int slot = t2 -> isAvailable(idx);
           t2 -> elements[idx][slot] = val;
         }
       }
     }
 
+    LOCK_TYPE* new_locks = new LOCK_TYPE[this -> buckets];
+    for (int i = 0; i < this -> buckets; i++) {
+      pthread_rwlock_init(&new_locks[i], NULL);
+    }
+    this -> locks = new_locks;
     this -> table1 = t1;
     this -> table2 = t2;
     UNLOCK(global_lock);
