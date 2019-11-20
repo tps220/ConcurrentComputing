@@ -27,7 +27,7 @@ inline unsigned long xorshf96(void) {
 #define READ_LOCK(x) pthread_rwlock_rdlock(&(x))
 #define UNLOCK(x) pthread_rwlock_unlock(&(x))
 #define WIDTH 6
-#define MAX_SEARCH_DEPTH 10
+#define MAX_SEARCH_DEPTH 7
 #define EMPTY 0
 
 template <typename T>
@@ -39,7 +39,7 @@ public:
     return val != EMPTY;
   }
 
-  static bool isOccupied(T* bucket, int slot) {
+  static bool isOccupied(volatile T* bucket, int slot) {
     return isOccupied(bucket[slot]);
   }
 
@@ -362,7 +362,7 @@ private:
         this -> table2 -> getElement(point.index, slot), //get element from table2 and rehash
         1
       ),
-      point.pathcode * WIDTH + slot, //next patchdoe
+      point.pathcode * WIDTH + slot, //next pathcode
       point.depth + 1 //increase depth by 1
     );
   }
@@ -375,8 +375,9 @@ private:
     while (!q.empty()) {
       Point point = q.front();
       q.pop();
+      volatile T* bucket = this -> getBucket(point); 
+      T val = bucket[point.pathcode % WIDTH];
 
-      T val = this -> getBucket(point)[point.pathcode % WIDTH];
       std::cout << point.index << " " << point.pathcode << " " << point.table << " " << val << std::endl;
       if (paths.find(val) != paths.end()) {
           std::cout << "CYCLE" << std::endl;
@@ -384,11 +385,10 @@ private:
       }
       paths.insert(val);
 
-      volatile T* bucket = this -> getBucket(point); 
       const int start_slot = xorshf96() % WIDTH;
       for (int i = 0; i < WIDTH; i++) {
         const int slot = (start_slot + i) % WIDTH;
-        if (!Table<T>::isOccupied(bucket[slot])) {
+        if (!Table<T>::isOccupied(bucket, slot)) {
           point.pathcode = point.pathcode * WIDTH + slot;
           return point;
         }
@@ -524,9 +524,6 @@ private:
           || !table2 -> isOccupied(path.index[depth - 1], path.slot[depth - 1])
           || this -> hash(table2 -> getElement(path.index[depth - 1], path.slot[depth -1]), 1) != path.index[depth]) {
 
-            std::cout << table1 -> elements[path.index[depth]][path.slot[depth]] << std::endl;
-            std::cout << table2 -> elements[path.index[depth - 1]][path.slot[depth - 1]] << std::endl;
-            std::cout << this -> hash(table2 -> getElement(path.index[depth-1], path.slot[depth - 1]), 1) << " " << path.index[depth] << std::endl;
           std::cout << "FAILED HERE 2: " << table1 -> isOccupied(path.index[depth], path.slot[depth]) << " " << !table2 -> isOccupied(path.index[depth - 1], path.slot[depth - 1]) << " " << (this -> hash(table2 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 1) != path.index[depth]) << std::endl;
           if (depth == 1) {
             unlock_three(idx1, idx2, path.index[depth]);
@@ -542,8 +539,10 @@ private:
       }
 
 
-      if (depth == 1 && path.index[depth] != idx1 && path.index[depth] != idx2) {
-        unlock_one(path.index[depth]);
+      if (depth == 1) {
+        if (path.index[depth] != idx1 && path.index[depth] != idx2) {
+          unlock_one(path.index[depth]);
+        }
       }
       else {
         unlock_two(path.index[depth], path.index[depth - 1]);
@@ -551,7 +550,6 @@ private:
       depth--;
     }
     
-    std::cout << "SUCCESFULLY FINISHED" << std::endl;
     return { SUCCESS, path.table[0], path.index[0], path.slot[0] };
   }
 
