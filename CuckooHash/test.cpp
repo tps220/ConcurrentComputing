@@ -5,6 +5,8 @@
 #include <vector>
 #include <assert.h>
 
+#define PRINT_THREAD_LOCAL_DATA
+
 int main(int argc, char **argv) {
   struct option long_options[] = {
     // These options don't set a flag
@@ -133,7 +135,7 @@ int main(int argc, char **argv) {
   );
   
   /* Populate set */
-  Cuckoo<int> *set = new Cuckoo<int>(initial * 2 / WIDTH);
+  Cuckoo<int> *set = new Cuckoo<int>(initial / WIDTH * 1.05);
   val_t last = 0; 
   val_t val = 0;
   printf("Adding %d entries to set\n", initial);

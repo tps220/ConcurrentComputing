@@ -23,35 +23,35 @@ inline unsigned long xorshf96(void) {
 }
 
 #define LOCK_TYPE pthread_spinlock_t
-#define WRITE_LOCK(x) pthread_spin_lock(&(x))
-#define READ_LOCK(x) pthread_spin_lock(&(x))
-#define UNLOCK(x) pthread_spin_unlock(&(x))
-#define WIDTH 6
+#define WRITE_LOCK(x) //pthread_spin_lock(&(x))
+#define READ_LOCK(x) //pthread_spin_lock(&(x))
+#define UNLOCK(x) //pthread_spin_unlock(&(x))
+#define WIDTH 50
 #define MAX_SEARCH_DEPTH 7
 #define EMPTY 0
 
 template <typename T>
 class Table {
 public:
-  volatile T** elements;
+  T** elements;
 
-  static bool isOccupied(volatile T val) {
+  static bool isOccupied(T val) {
     return val != EMPTY;
   }
 
-  static bool isOccupied(volatile T* bucket, int slot) {
+  static bool isOccupied(T* bucket, int slot) {
     return isOccupied(bucket[slot]);
   }
 
   Table(unsigned int size) {
-    this -> elements = new volatile T*[size];
+    this -> elements = new T*[size];
     for (int i = 0; i < size; i++) {
-      elements[i] = new volatile T[WIDTH]();
+      elements[i] = new T[WIDTH]();
     }
   }
 
   bool find(T val, int idx) {
-    volatile T* bucket = this -> elements[idx];
+    T* bucket = this -> elements[idx];
     for (int i = 0; i < WIDTH; i++) {
       if (bucket[i] == val) {
         return true;
@@ -61,7 +61,7 @@ public:
   }
 
   int findSlot(T val, int idx) {
-    volatile T* bucket = this -> elements[idx];
+    T* bucket = this -> elements[idx];
     for (int i = 0; i < WIDTH; i++) {
       if (bucket[i] == val) {
         return i;
@@ -71,7 +71,7 @@ public:
   }
   
   int isAvailable(int idx) {
-    volatile T* bucket = this -> elements[idx];
+    T* bucket = this -> elements[idx];
     for (int i = 0; i < WIDTH; i++) {
       if (!isOccupied(bucket[i])) {
         return i;
@@ -159,15 +159,15 @@ public:
   bool remove(T val) {
     pthread_rwlock_rdlock(&global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
-    this -> lock_two(idx1, idx2);
     int slot;
-    if ((slot = table1 -> findSlot(val, idx1)) != -1) {
-      table1 -> elements[idx1][slot] = EMPTY;
+    __transaction_atomic {
+      if ((slot = table1 -> findSlot(val, idx1)) != -1) {
+        table1 -> elements[idx1][slot] = EMPTY;
+      }
+      else if ((slot = table2 -> findSlot(val, idx2)) != -1) {
+        table2 -> elements[idx2][slot] = EMPTY;
+      }
     }
-    else if ((slot = table2 -> findSlot(val, idx2)) != -1) {
-      table2 -> elements[idx2][slot] = EMPTY;
-    }
-    this -> unlock_two(idx1, idx2);
     pthread_rwlock_unlock(&global_lock);
     return slot != -1;
   }
@@ -175,9 +175,11 @@ public:
   bool contains(T val) {
     pthread_rwlock_rdlock(&global_lock);
     const int idx1 = hash(val, 1), idx2 = hash(val, 2);
-    lock_two(idx1, idx2);
-    bool retval = table1 -> find(val, idx1) || table2 -> find(val, idx2);
-    unlock_two(idx1, idx2);
+    bool retval;
+    __transaction_atomic {
+      retval = table1 -> find(val, idx1) || table2 -> find(val, idx2);
+
+    }
     pthread_rwlock_unlock(&global_lock);
     return retval;
   }
@@ -194,12 +196,7 @@ public:
   }
 
   Cuckoo(unsigned int buckets) : buckets(buckets) {
-    this -> locks = new LOCK_TYPE[buckets];
-    for (int i = 0; i < buckets; i++) {
-      pthread_spin_init(&this -> locks[i], 0);
-    }
     pthread_rwlock_init(&this -> global_lock, NULL);
-
     this -> table1 = new Table<T>(buckets);
     this -> table2 = new Table<T>(buckets);
   }
@@ -367,7 +364,7 @@ private:
     while (!q.empty()) {
       Point point = q.front();
       q.pop();
-      volatile T* bucket = this -> getBucket(point); 
+      T* bucket = this -> getBucket(point); 
       T val = bucket[point.pathcode % WIDTH];
 
       if (paths.find(val) != paths.end()) {
@@ -393,7 +390,7 @@ private:
     return Point(-1, -1, -1, -1);
   }
 
-  volatile T* getBucket(Point point) {
+  T* getBucket(Point point) {
     if (point.table == 1) {
       return this -> table1 -> elements[point.index];
     }
@@ -402,9 +399,9 @@ private:
 
   Result insert(T val, const int idx1, const int idx2) {
     int slot;
+    __transaction_atomic {
     this -> lock_two(idx1, idx2);
     if (this -> table1 -> find(val, idx1) || this -> table2 -> find(val, idx2)) {
-      unlock_two(idx1, idx2);
       return { DUPLICATE, 0, 0, 0 };
     }
     if ((slot = this -> table1 -> isAvailable(idx1)) != -1) {
@@ -413,7 +410,7 @@ private:
     if ((slot = this -> table2 -> isAvailable(idx2)) != -1) {
       return { SUCCESS, 2, idx2, slot };
     }
-    this -> unlock_two(idx1, idx2);
+    }
 
     Point point = search(idx1, idx2);
     if (point.pathcode == -1) {
@@ -464,7 +461,7 @@ private:
     }
 
     if (depth == 0) {
-      lock_two(idx1, idx2);
+        __transaction_atomic {
       if (path.table[0] == 1 && this -> table1 -> isAvailable(path.index[0], path.slot[0])) {
         return { SUCCESS, 1, path.index[0], path.slot[0] };
       }
@@ -472,30 +469,19 @@ private:
         return { SUCCESS, 2, path.index[0], path.slot[0] }; //need to determine which table it belongs to
       }
       else {
-        unlock_two(idx1, idx2);
         return { RETRY, 0, 0, 0 };
+      }
       }
     }
 
     while (depth > 0) {
-      if (depth == 1) {
-        lock_three(idx1, idx2, path.index[depth]);
-      }
-      else {
-        lock_two(path.index[depth], path.index[depth - 1]);
-      }
-
+      __transaction_atomic {
       if (path.table[depth - 1] == 1) { //table1 from, table2 to
         if (table2 -> isOccupied(path.index[depth], path.slot[depth]) //if to is occupied, error
           || !table1 -> isOccupied(path.index[depth - 1], path.slot[depth - 1])  //if from is not occupied, error
           || this -> hash(table1 -> getElement(path.index[depth - 1], path.slot[depth - 1]), 2) != path.index[depth]) { //else if element has changed and hash does not equal
           
-          if (depth == 1) {
-            unlock_three(idx1, idx2, path.index[depth]);
-          }
-          else {
-            unlock_two(path.index[depth], path.index[depth - 1]);
-          }
+
           return { RETRY, 0, 0, 0 };
         }
       
@@ -507,27 +493,13 @@ private:
           || !table2 -> isOccupied(path.index[depth - 1], path.slot[depth - 1])
           || this -> hash(table2 -> getElement(path.index[depth - 1], path.slot[depth -1]), 1) != path.index[depth]) {
 
-          if (depth == 1) {
-            unlock_three(idx1, idx2, path.index[depth]);
-          }
-          else {
-            unlock_two(path.index[depth], path.index[depth - 1]);
-          }
+
           return { RETRY, 0, 0, 0 };
         }
 
         this -> table1 -> elements[path.index[depth]][path.slot[depth]] = this -> table2 -> elements[path.index[depth - 1]][path.slot[depth - 1]];
         this -> table2 -> elements[path.index[depth - 1]][path.slot[depth - 1]] = EMPTY;
       }
-
-
-      if (depth == 1) {
-        if (path.index[depth] != idx1 && path.index[depth] != idx2) {
-          unlock_one(path.index[depth]);
-        }
-      }
-      else {
-        unlock_two(path.index[depth], path.index[depth - 1]);
       }
       depth--;
     }
@@ -566,11 +538,6 @@ private:
       }
     }
 
-    LOCK_TYPE* new_locks = new LOCK_TYPE[this -> buckets];
-    for (int i = 0; i < this -> buckets; i++) {
-      pthread_spin_init(&new_locks[i], 0);
-    }
-    this -> locks = new_locks;
     this -> table1 = t1;
     this -> table2 = t2;
     pthread_rwlock_unlock(&global_lock);
