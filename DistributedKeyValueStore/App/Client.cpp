@@ -20,8 +20,10 @@
 #include "Benchmark.hpp"
 #include "Remote.hpp"
 #include "Parser.hpp"
+#include "locks.hpp"
 
 volatile int stop = 0;
+barrier_t local_barrier; //need a local and global barrier in order to coordinate timing across and within nodes
 
 void execute_remote_txs(Thread_Data *thread) {
   int unext, last = -1; 
@@ -30,6 +32,7 @@ void execute_remote_txs(Thread_Data *thread) {
 
   Remote *remote = new Remote(thread -> benchmark -> nodes); //initiate connections
   remote -> awaitMaster();
+  barrier_cross(&local_barrier);
   
   // Is the first op a write?
   unext = (rand_range_re(&data -> seed, 100) - 1 < data -> update);
@@ -138,6 +141,9 @@ ExperimentResult run(
   //2 Initialize Global Stop Condition
   stop = 0;
 
+  //3 Initialize Local Barrier
+  barrier_init(&local_barrier, environment.clientsPerServer + 1);
+
   //4 Spawn Threads and MAP
   for (int i = 0; i < environment.clientsPerServer; i++) {
     thread_local_data.push_back(
@@ -156,6 +162,7 @@ ExperimentResult run(
   struct timespec timeout;
   timeout.tv_sec = duration / 1000;
   timeout.tv_nsec = (duration % 1000) * 1000000;
+  barrier_cross(&local_barrier);
 
   printf("STARTING...\n");
   gettimeofday(&start, NULL);
