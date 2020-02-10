@@ -15,6 +15,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <assert.h>
 #include "Connection.hpp"
 #include "Benchmark.hpp"
 #include "Remote.hpp"
@@ -182,7 +183,7 @@ int main(int argc, char **argv) {
   unsigned long reads, effreads, updates, effupds, size = 0;
 
 	/* parse the command-line options. */
-	while((opt = getopt(argc, argv, "sd:r:u:")) != -1) {
+	while((opt = getopt(argc, argv, "s:d:r:u:")) != -1) {
 		switch(opt) {
 			case 's':
         servers = optarg; 
@@ -201,7 +202,6 @@ int main(int argc, char **argv) {
 
   assert(servers != NULL);
   std::vector<Node> nodes = parseNodes(servers); //format servers as 1289.1241.123:9000,___,___ wherein the : seperates the port and , separates the entire address
-
   ExperimentResult result = run(
     0,
     update,

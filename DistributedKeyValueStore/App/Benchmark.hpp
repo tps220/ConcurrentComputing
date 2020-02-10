@@ -102,14 +102,16 @@ public:
   //Synchrobench specific data
   thread_benchmark *benchmark;
 
-  Thread_Data(int id, thread_benchmark *benchmark);
+  Thread_Data(int id, thread_benchmark *benchmark) : 
+    id(id), benchmark(benchmark) {}
 };
 
 class ExperimentResult {
 public:
   int duration;
   std::vector<Thread_Data> data;
-  ExperimentResult(int duration, std::vector<Thread_Data> data);
+  ExperimentResult(int duration, std::vector<Thread_Data> data) : 
+    duration(duration), data(data) {}
 };
 
 inline std::vector<Node> parseNodes(char* input) {
@@ -119,6 +121,7 @@ inline std::vector<Node> parseNodes(char* input) {
   while (input[i] != '\0') {
     if (input[i] == ':') {
       input[i] = '\0';
+      i++;
       int port = 0;
       while (input[i] >= '0' && input[i] <= '9') {
         port = port * 10 + input[i] - '0';

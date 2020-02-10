@@ -1,4 +1,5 @@
 #include <iostream>
+#pragma once
 
 struct Node {
     int id;

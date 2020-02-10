@@ -16,10 +16,11 @@
 #include <unistd.h>
 #include "Message.hpp"
 
-Remote::Remote(std::vector<Node> nodes) {
+Remote::Remote(std::vector<Node> nodes) : nodes(nodes) {
   for (int i = 0; i < nodes.size(); i++) {
     int fd = Connection::Client::connect_to_server(nodes[i].server, nodes[i].port);
     this -> connections.push_back(fd);
+    fprintf(stderr, "Connected to %s at %d port, local fd: %d\n", nodes[i].server, nodes[i].port, fd);
   }
 }
 

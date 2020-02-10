@@ -2,7 +2,7 @@ CXX = g++
 LD = g++
 
 OFLAGS = -c -I../Common
-INCLUDE_DIR = ../Common
+INCLUDE_DIR = -I../Common
 LFLAGS = $(CFLAGS) -L/usr/lib/ -lpthread
 CFLAGS += $(INCLUDE_DIR)
 

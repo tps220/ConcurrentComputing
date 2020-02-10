@@ -99,7 +99,8 @@ int main(int argc, char **argv) {
     threads.push_back(std::thread(connection_handler));
   }
 */
-    
+  store = new ConcurrentHashMap<int, int>(100);
+  
   /* open a socket, and start handling requests */
   fprintf(stderr, "Opening Server Socket\n");
   int fd = Connection::Server::open_server_socket(port);
