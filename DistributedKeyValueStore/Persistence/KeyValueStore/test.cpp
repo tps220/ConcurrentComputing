@@ -16,19 +16,19 @@ int main(int argc, char** argv) {
   }
 
   for (int i = 0; i < SIZE; i++) {
-    if (!map -> contains(values[i].first)) {
+    if (map -> contains(values[i].first) != RESULT::TRUE) {
       std::cerr << " Failed Insertion " << std::endl;
     }
   }
 
   for (int i = 0; i < SIZE; i++) {
-    if (!map -> remove(values[i].first)) {
+    if (map -> remove(values[i].first) != RESULT::TRUE) {
       std::cerr << " Failed Deletion " << std::endl;
     }
   }
 
   for (int i = 0; i < SIZE; i++) {
-    if (map -> contains(values[i].first)) {
+    if (map -> contains(values[i].first) == RESULT::TRUE) {
       std::cerr << " Failed Post Deletion " << std::endl;
     }
   }
