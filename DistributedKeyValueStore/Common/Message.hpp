@@ -13,6 +13,7 @@ public:
   MESSAGE_TYPE protocol;
   std::pair<int, int> data;
 
+  static char* serialize(Message message);
   static Message deserialize(Buffer* data);
   static bool verify(Buffer* data);
 };

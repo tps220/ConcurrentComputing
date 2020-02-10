@@ -1,12 +1,12 @@
 CXX = g++
 LD = g++
 
-OFLAGS = -c -I../utils/ -I../../Common
-INCLUDE_DIR = -I../utils -I../../Common
+OFLAGS = -c -I../Common
+INCLUDE_DIR = ../Common
 LFLAGS = $(CFLAGS) -L/usr/lib/ -lpthread
 CFLAGS += $(INCLUDE_DIR)
 
-SOURCES = $(wildcard *.cpp)
+SOURCES = $(wildcard *.cpp KeyValueStore/*.cpp utils/*.cpp ../Common/*.cpp)
 OBJECTS = $(SOURCES:.cpp=.o)
 
 DEBUG = no

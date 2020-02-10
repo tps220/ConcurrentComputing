@@ -48,3 +48,9 @@ bool Message::verify(Buffer* protocol) {
   }
   return true;
 }
+
+char* Message::serialize(Message message) {
+  char response[BUFFER_SIZE];
+  size_t length = sprintf(response, "PUT %d,%d\n", message.data.first, message.data.second);
+  return response;
+} 

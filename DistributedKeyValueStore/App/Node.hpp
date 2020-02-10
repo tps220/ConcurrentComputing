@@ -1,8 +1,8 @@
 #include <iostream>
-#include "Range.hpp"
 
-class Node {
+struct Node {
     int id;
-    Range range;
-    std::string address;
+    char* server;
+    const int port;
+    Node(char* server, int port) : server(server), port(port) {}
 };
