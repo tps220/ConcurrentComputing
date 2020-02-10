@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <pthread.h>
-#include "Node.hpp"
+#include "ServerNode.hpp"
 
 #define val_t int
 #define DEFAULT_DURATION                10000
@@ -68,7 +68,7 @@ struct thread_benchmark {
   unsigned long nb_found;
   unsigned long nb_aborted;
   unsigned int seed;
-  std::vector<Node> nodes;
+  std::vector<ServerNode> nodes;
 
   thread_benchmark(
     val_t first,
@@ -77,7 +77,7 @@ struct thread_benchmark {
     int unit_tx,
     int alternate,
     int effective,
-    std::vector<Node> nodes
+    std::vector<ServerNode> nodes
   ) : 
     first(first),
     range(range),
