@@ -1,0 +1,42 @@
+CXX = g++
+LD = g++
+
+OFLAGS = -c -I../utils/
+INCLUDE_DIR = -I../utils
+LFLAGS = $(CFLAGS) -L/usr/lib/ -lpthread
+CFLAGS += $(INCLUDE_DIR)
+
+SOURCES = $(wildcard *.cpp)
+OBJECTS = $(SOURCES:.cpp=.o)
+
+DEBUG = no
+PROFILE = no
+PEDANTIC = no
+OPTIMIZATION = -O3
+
+ifeq ($(DEBUG), yes)
+	CFLAGS += -g
+	OPTIMIZATION = -O0
+endif
+
+ifeq ($(PROFILE), yes)
+	CFLAGS += -pg
+endif
+
+CFLAGS += $(OPTIMIZATION)
+
+all: test
+
+test: $(OBJECTS)
+	$(CXX) $(OBJECTS) $(CFLAGS) -o test
+
+%.o: %.cpp
+	$(CXX) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -rf *.o test
+
+rebuild: clean all
+
+.PHONY : clean
+.SILENT : clean
