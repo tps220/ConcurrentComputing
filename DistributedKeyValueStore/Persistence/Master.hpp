@@ -53,7 +53,7 @@ bool isMaster(char* targetIP) {
         printf("getnameinfo() failed: %s\n", gai_strerror(s));
         exit(EXIT_FAILURE);
       }
-      hasSameAddress |= strcmp(host, targetIP);
+      hasSameAddress |= !strcmp(host, targetIP);
     }
   }
   freeifaddrs(ifaddr);
