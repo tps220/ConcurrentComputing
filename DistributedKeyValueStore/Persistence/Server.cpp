@@ -101,7 +101,9 @@ int main(int argc, char **argv) {
 */
     
   /* open a socket, and start handling requests */
+  fprintf(stderr, "Opening Server Socket\n");
   int fd = Connection::Server::open_server_socket(port);
+  fprintf(stderr, "Synchronusly Polling for Connections\n");
   poll_connections(fd, connection_handler);
 
 /*
