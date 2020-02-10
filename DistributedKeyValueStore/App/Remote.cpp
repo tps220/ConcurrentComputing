@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include "Message.hpp"
 
-Remote::Remote(std::vector<Node> nodes) : nodes(nodes) {
+Remote::Remote(std::vector<ServerNode> nodes) : nodes(nodes) {
   for (int i = 0; i < nodes.size(); i++) {
     int fd = Connection::Client::connect_to_server(nodes[i].server, nodes[i].port);
     this -> connections.push_back(fd);
@@ -30,7 +30,6 @@ Remote::~Remote() {
 	  if((rc = close(fd)) < 0) {
 		  Connection::die("Close error: ", strerror(errno));
 	  }
-	  exit(0);
   }
 }
 
@@ -84,4 +83,13 @@ RESULT Remote::awaitResponse(const int fd) {
   }
   response -> data[response -> currentSize - 1] = '\0';
   return (RESULT)atoi(response -> data);
+}
+
+void Remote::awaitMaster() {
+  const int masterFd = this -> connections[0];
+  Buffer* response = Connection::socket_get_line(masterFd);
+  if (response == NULL) {
+    exit(0);
+  }
+  return;
 }

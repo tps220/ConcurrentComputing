@@ -20,7 +20,6 @@ Message Message::deserialize(Buffer* protocol) {
 
   //replace the \n character at the end of the message with the null character
   protocol -> data[protocol -> currentSize - 1] = '\0';
-  fprintf(stderr, "Received Protocol: %s\n", protocol -> data);
 
   //separate protocol (length of 3) and {key,val} into two separate strings
   protocol -> data[3] = '\0';

@@ -19,6 +19,7 @@
 #include "Connection.hpp"
 #include "Benchmark.hpp"
 #include "Remote.hpp"
+#include "Parser.hpp"
 
 volatile int stop = 0;
 
@@ -28,6 +29,7 @@ void execute_remote_txs(Thread_Data *thread) {
   thread_benchmark* data = thread -> benchmark;
 
   Remote *remote = new Remote(thread -> benchmark -> nodes); //initiate connections
+  remote -> awaitMaster();
   
   // Is the first op a write?
   unext = (rand_range_re(&data -> seed, 100) - 1 < data -> update);
@@ -64,9 +66,13 @@ void execute_remote_txs(Thread_Data *thread) {
       val = rand_range_re(&data -> seed, data -> range - 1) + 1;
       val_2 = rand_range_re(&data -> seed, data -> range - 1) + 1;
       std::pair<int, int> keys = {val, val_2};
-      if (remote -> insert(keys) == RESULT::TRUE) {
+      RESULT retval = remote -> insert(keys);
+      if (retval == RESULT::TRUE) {
         data -> nb_added++;
         last = val;
+      }
+      else if (retval == RESULT::ABORT_FAILURE) {
+        data -> nb_aborted++;
       }
       data -> nb_add++;
     } else { // read
@@ -89,8 +95,12 @@ void execute_remote_txs(Thread_Data *thread) {
       } else {
         val = rand_range_re(&data -> seed, data-> range - 1) + 1;
       }
-      if (remote -> get(val) == RESULT::TRUE) {
+      RESULT retval = remote -> get(val);
+      if (retval == RESULT::TRUE) {
         data -> nb_found++;
+      }
+      else if (retval == RESULT::ABORT_FAILURE) {
+        data -> nb_aborted++;
       }
       data -> nb_contains++;     
     }
@@ -117,7 +127,7 @@ ExperimentResult run(
   const int seed,
   const int duration,
   const int range,
-  std::vector<Node> nodes
+  GlobalView environment
 ) {
   std::vector<std::thread> threads;
   std::vector<Thread_Data> thread_local_data;
@@ -127,15 +137,15 @@ ExperimentResult run(
 
   //2 Initialize Global Stop Condition
   stop = 0;
-  
+
   //4 Spawn Threads and MAP
-  for (int i = 0; i < 1; i++) {
+  for (int i = 0; i < environment.clientsPerServer; i++) {
     thread_local_data.push_back(
-      Thread_Data(i, new thread_benchmark(first, range, update, unit_tx, alternate, effective, nodes))
+      Thread_Data(i, new thread_benchmark(first, range, update, unit_tx, alternate, effective, environment.nodes))
     );
   }
 
-  for (int i = 0; i < 1; i++) {
+  for (int i = 0; i < environment.clientsPerServer; i++) {
     threads.push_back(
       std::thread(execute_remote_txs, &thread_local_data[i])
     );
@@ -180,14 +190,11 @@ int main(int argc, char **argv) {
   int unit_tx = DEFAULT_LOCKTYPE;
   int alternate = DEFAULT_ALTERNATE;
   int effective = DEFAULT_EFFECTIVE;
-  unsigned long reads, effreads, updates, effupds, size = 0;
+  unsigned long reads, effreads, updates, effupds, size = 0, aborted;
 
 	/* parse the command-line options. */
-	while((opt = getopt(argc, argv, "s:d:r:u:")) != -1) {
+	while((opt = getopt(argc, argv, "d:r:u:")) != -1) {
 		switch(opt) {
-			case 's':
-        servers = optarg; 
-        break;
       case 'd':
         duration = atoi(optarg);
         break;
@@ -200,8 +207,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-  assert(servers != NULL);
-  std::vector<Node> nodes = parseNodes(servers); //format servers as 1289.1241.123:9000,___,___ wherein the : seperates the port and , separates the entire address
+  GlobalView environment = Parser::getEnvironment();
   ExperimentResult result = run(
     0,
     update,
@@ -211,7 +217,7 @@ int main(int argc, char **argv) {
     seed,
     duration,
     range,
-    nodes
+    environment
   );
   
   std::vector<Thread_Data> snapshot = result.data;
@@ -226,6 +232,7 @@ int main(int argc, char **argv) {
   effreads = 0;
   updates = 0;
   effupds = 0;
+  aborted = 0;
   for (int i = 0; i < nb_threads; i++) {
     #ifdef PRINT_THREAD_LOCAL_DATA
         printf("Thread %d\n", i);
@@ -243,7 +250,7 @@ int main(int argc, char **argv) {
       (data[i].nb_remove - data[i].nb_removed); 
     updates += (data[i].nb_add + data[i].nb_remove);
     effupds += data[i].nb_removed + data[i].nb_added; 
-    
+    aborted += data[i].nb_aborted;
     //size += data[i].diff;
     size += data[i].nb_added - data[i].nb_removed;
   }
@@ -269,6 +276,7 @@ int main(int argc, char **argv) {
   } else {
     printf("%lu (%f / s)\n", updates, updates * 1000.0 / duration);
   }
+  printf("#aborts %d\n", aborted);
 
 	exit(0);
 }

@@ -19,10 +19,19 @@
 #include "Connection.hpp"
 #include "Message.hpp"
 #include "ConcurrentHashMap.hpp"
+#include "Master.hpp"
+#include "Parser.hpp"
 
+Master master;
 #define PORT 9000
 #define THREAD_NUM 3
 ConcurrentHashMap<int, int> *store = NULL;
+
+void send_initialization(const int socketid) {
+  char response[BUFFER_SIZE];
+  size_t length = sprintf(response, "BEGIN\n");
+  Connection::stream_data(socketid, response, length);
+}
 
 void send_response(const int socketid, RESULT result) {
   char response[BUFFER_SIZE];
@@ -55,6 +64,10 @@ void handleMessage(const int socketid) {
 }
 
 void connection_handler(int connectionfd) {
+  if (master.isMaster) {
+    barrier_cross(&master.barrier);
+    send_initialization(connectionfd);
+  }
   while (1) {
     handleMessage(connectionfd);
   }
@@ -93,6 +106,8 @@ void poll_connections(int listenfd, void (*service_function)(int)) {
 
 int main(int argc, char **argv) {
   const int port = 9000;
+  GlobalView environment = Parser::getEnvironment();
+  master.isMaster = isMaster(environment.nodes[0].server);
 /*
   std::vector<std::thread> threads;
   for (int i = 0; i < THREAD_NUM; i++) {
@@ -100,6 +115,10 @@ int main(int argc, char **argv) {
   }
 */
   store = new ConcurrentHashMap<int, int>(100);
+  if (master.isMaster) {
+    fprintf(stderr, "I AM THE MASTER\n");
+    barrier_init(&master.barrier, environment.clientsPerServer * environment.nodes.size());
+  }
   
   /* open a socket, and start handling requests */
   fprintf(stderr, "Opening Server Socket\n");

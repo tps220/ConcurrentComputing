@@ -66,6 +66,7 @@ struct thread_benchmark {
   unsigned long nb_removed;
   unsigned long nb_contains;
   unsigned long nb_found;
+  unsigned long nb_aborted;
   unsigned int seed;
   std::vector<Node> nodes;
 
@@ -90,6 +91,7 @@ struct thread_benchmark {
     nb_removed(0),
     nb_contains(0),
     nb_found(0),
+    nb_aborted(0),
     seed(rand()),
     nodes(nodes) {}
 };
@@ -113,24 +115,3 @@ public:
   ExperimentResult(int duration, std::vector<Thread_Data> data) : 
     duration(duration), data(data) {}
 };
-
-inline std::vector<Node> parseNodes(char* input) {
-  int i = 0;
-  std::vector<Node> nodes;
-  int window = 0;
-  while (input[i] != '\0') {
-    if (input[i] == ':') {
-      input[i] = '\0';
-      i++;
-      int port = 0;
-      while (input[i] >= '0' && input[i] <= '9') {
-        port = port * 10 + input[i] - '0';
-        i++;
-      }
-      nodes.push_back(Node(input + window, port));
-      window = i + 1;
-    }
-    i++;
-  }
-  return nodes;
-}
