@@ -1,4 +1,5 @@
 #include "Message.hpp"
+#include <string.h>
 
 std::pair<int, int> getTwoNumbers(char* data) {
   int val_1 = 0, val_2 = 0, i = 0;

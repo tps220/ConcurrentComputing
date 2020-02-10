@@ -40,7 +40,7 @@ void handleMessage(const int socketid) {
   Message message = Message::deserialize(protocol);
   RESULT result;
   if (message.protocol == GET) {
-    result = store -> contains(message.data);
+    result = store -> contains(message.data.first);
   }
   else if (message.protocol == PUT) {
     result = store -> add(message.data);
