@@ -15,4 +15,5 @@ public:
   RESULT contains(K key);
   RESULT add(std::pair<K, V> node);
   RESULT remove(K key);
+  int size();
 };

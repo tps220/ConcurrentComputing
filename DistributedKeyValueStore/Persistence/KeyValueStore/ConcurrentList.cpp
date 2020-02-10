@@ -91,3 +91,14 @@ LazyList<K, V>::LazyList() {
   this -> head = new Node<K, V>(INT_MIN, INT_MIN);
   this -> head -> next = new Node<K, V>(INT_MAX, INT_MAX);
 }
+
+template <typename K, typename V>
+int LazyList<K, V>::size() {
+  int size = -2;
+  Node<K, V>* runner = this -> head;
+  while (runner != NULL) {
+    size++;
+    runner = runner -> next;
+  }
+  return size;
+}

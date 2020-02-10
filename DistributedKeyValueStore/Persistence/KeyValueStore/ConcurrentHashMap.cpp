@@ -33,3 +33,12 @@ ConcurrentHashMap<K, V>::ConcurrentHashMap(unsigned int buckets) : buckets(bucke
     map[i] = new LazyList<K, V>();
   }
 }
+
+template <typename K, typename V>
+int ConcurrentHashMap<K, V>::size() {
+  int size = 0;
+  for (int i = 0; i < this -> buckets; i++) {
+    size += this -> map[i] -> size();
+  }
+  return size;
+}
