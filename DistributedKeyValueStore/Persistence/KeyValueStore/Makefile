@@ -28,10 +28,10 @@ CFLAGS += $(OPTIMIZATION)
 all: test
 
 test: $(OBJECTS)
-	$(CXX) $(OBJECTS) $(CFLAGS) -o test
+	$(CXX) $(OBJECTS) $(CFLAGS) -lpthread -o test
 
 %.o: %.cpp
-	$(CXX) $(CFLAGS) -c $< -o $@
+	$(CXX) $(CFLAGS) -lpthread -c $< -o $@
 
 clean:
 	rm -rf *.o test

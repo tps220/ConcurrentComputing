@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < SIZE; i++) {
     int key = rand();
     int val = rand();
-    std::pair<int, int> record = std::make_pair<int, int>(key, val);
+    std::pair<int, int> record = std::make_pair(key, val);
     values.push_back(record);
     map -> add(record);
   }

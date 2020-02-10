@@ -1,6 +1,9 @@
 #include "ConcurrentList.hpp"
 #include <climits>
 
+//sample concurrent list template class
+template class LazyList<int, int>;
+
 template <typename K, typename V>
 bool LazyList<K, V>::validateLink(Node<K, V>* prev, Node<K, V>* next) {
   return (volatile Node<K, V>*)(prev -> next) == next && !prev -> marked && !next -> marked;

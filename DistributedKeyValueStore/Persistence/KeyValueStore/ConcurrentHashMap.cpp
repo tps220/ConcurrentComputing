@@ -1,5 +1,8 @@
 #include "ConcurrentHashMap.hpp"
 
+//sample key valeu store
+template class ConcurrentHashMap<int, int>;
+
 template <typename K, typename V>
 unsigned int ConcurrentHashMap<K, V>::translate(K key) {
   return key % this -> buckets;
@@ -20,7 +23,7 @@ RESULT ConcurrentHashMap<K, V>::remove(K key) {
 template <typename K, typename V>
 RESULT ConcurrentHashMap<K, V>::add(std::pair<K, V> node) {
   int bucket = this -> translate(node.first);
-  return this -> map[bucket] -> add(node.second);
+  return this -> map[bucket] -> add(node);
 }
 
 template <typename K, typename V>
