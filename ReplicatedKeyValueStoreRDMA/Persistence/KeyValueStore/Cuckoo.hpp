@@ -175,7 +175,7 @@ public:
   Cuckoo(unsigned int buckets) : buckets(buckets) {
     this -> locks = new pthread_spinlock_t[buckets];
     for (int i = 0; i < buckets; i++) {
-      pthread_spin_init(&this -> locks[i], NULL);
+      pthread_spin_init(&this -> locks[i], 0);
     }
     this -> table = new Table<K, V>(buckets);
   }

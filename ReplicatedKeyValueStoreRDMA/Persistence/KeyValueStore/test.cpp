@@ -137,15 +137,16 @@ int main(int argc, char **argv) {
   /* Populate set */
   Cuckoo<int, int> *set = new Cuckoo<int, int>(initial / ENTRY_WIDTH * 1.05);
   val_t last = 0; 
-  val_t val = 0;
+  val_t val = 0, val_2 = 0;
   printf("Adding %d entries to set\n", initial);
   i = 0;
   while (i < initial) {
-    val = (rand() % range) + 1;
-    if (set -> insert(val)) {
-      last = val;
-      i++;
-    }
+    val = (rand() % (range - 1)) + 1;
+    val_2 = (rand() % (range - 1)) + 1;
+    Node<int, int> element(val, val_2);
+    set -> insert(element);
+    last = val;
+    i++;
   }
   int size = set -> size();
   printf("Set size     : %d\n", size);
