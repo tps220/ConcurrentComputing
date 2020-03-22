@@ -2,7 +2,7 @@
 #include <iostream>
 #include <pthread.h>
 #include <sys/types.h>
-       #include <ifaddrs.h>
+#include <ifaddrs.h>
 #include "locks.hpp"
 
 struct Master {
