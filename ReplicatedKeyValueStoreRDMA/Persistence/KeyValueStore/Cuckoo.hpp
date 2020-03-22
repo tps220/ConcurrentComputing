@@ -126,10 +126,7 @@ public:
     while (true) {
       InsertResult result = insert(element, idx1, idx2);
       //Possbile failures
-      if (result.status == DUPLICATE) {
-        return RESULT::ABORT_FAILURE;
-      }
-      else if (result.status == RESIZE) {
+      if (result.status == RESIZE) {
         return RESULT::ABORT_FAILURE;
         continue;
       }
@@ -138,7 +135,7 @@ public:
       }
       this -> table -> elements[result.index][result.slot] = element;
       unlock_two(idx1, idx2);
-      return RESULT::TRUE;
+      return result.status == DUPLICATE ? RESULT::DUP : RESULT::TRUE;
     }
   }
 
@@ -149,7 +146,7 @@ public:
     if ((slot = this -> table -> findSlot(key, idx1)) != -1) {
       this -> table -> elements[idx1][slot].key = EMPTY;
     }
-    else if (idx1 != idx2 && ((slot = this -> table -> findSlot(key, idx2)) != -1)) {
+    else if ((slot = this -> table -> findSlot(key, idx2)) != -1) {
       this -> table -> elements[idx2][slot].key = EMPTY;
     }
     this -> unlock_two(idx1, idx2);
@@ -224,35 +221,35 @@ private:
   }
 
   void unlock_one(int idx) {
-    pthread_spin_lock(&this -> locks[idx]);
+    pthread_spin_unlock(&this -> locks[idx]);
   }
 
   void unlock_two(int idx1, int idx2) {
     if (idx1 != idx2) {
-      pthread_spin_lock(&this -> locks[idx1]);
-      pthread_spin_lock(&this -> locks[idx2]);
+      pthread_spin_unlock(&this -> locks[idx1]);
+      pthread_spin_unlock(&this -> locks[idx2]);
     }
     else {
-      pthread_spin_lock(&this -> locks[idx1]);
+      pthread_spin_unlock(&this -> locks[idx1]);
     }
   }
 
   void unlock_three(int idx1, int idx2, int idx3) {
     if (idx1 != idx2 && idx2 != idx3 && idx1 != idx3) {
-      pthread_spin_lock(&this -> locks[idx1]);
-      pthread_spin_lock(&this -> locks[idx2]);
-      pthread_spin_lock(&this -> locks[idx3]);
+      pthread_spin_unlock(&this -> locks[idx1]);
+      pthread_spin_unlock(&this -> locks[idx2]);
+      pthread_spin_unlock(&this -> locks[idx3]);
     }
     else if (idx1 == idx2 && idx2 == idx3) {
-      pthread_spin_lock(&this -> locks[idx1]);
+      pthread_spin_unlock(&this -> locks[idx1]);
     }
     else if (idx1 == idx2) {
-      pthread_spin_lock(&this -> locks[idx1]);
-      pthread_spin_lock(&this -> locks[idx3]);
+      pthread_spin_unlock(&this -> locks[idx1]);
+      pthread_spin_unlock(&this -> locks[idx3]);
     }
     else {
-      pthread_spin_lock(&this -> locks[idx1]);
-      pthread_spin_lock(&this -> locks[idx2]);
+      pthread_spin_unlock(&this -> locks[idx1]);
+      pthread_spin_unlock(&this -> locks[idx2]);
     }
   }
 
@@ -376,10 +373,10 @@ private:
     int slot;
     this -> lock_two(idx1, idx2);
     if ((slot = this -> table -> findSlot(element, idx1)) != -1) {
-      return { SUCCESS, 1, idx1, slot };
+      return { DUPLICATE, 1, idx1, slot };
     }
     if ((slot = this -> table -> findSlot(element, idx2)) != -1) {
-      return { SUCCESS, 2, idx2, slot };
+      return { DUPLICATE, 2, idx2, slot };
     }
     if ((slot = this -> table -> isAvailable(idx1)) != -1) {
       return { SUCCESS, 1, idx1, slot };
