@@ -137,6 +137,7 @@ public:
         continue;
       }
       this -> table -> elements[result.index][result.slot] = element;
+      unlock_two(idx1, idx2);
       return RESULT::TRUE;
     }
   }
