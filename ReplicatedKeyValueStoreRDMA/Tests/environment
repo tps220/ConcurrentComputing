@@ -1,0 +1,2 @@
+128.180.120.75:9000,128.180.120.71:9000,128.180.120.67:9000,128.180.120.75:9000 <-- last one acts as auxillary node for coordinating tests
+8
