@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdlib.h>
-#include "Cuckoo.hpp"
-#include "Parser.hpp"
+//#include "Cuckoo.hpp"
+//#include "Parser.hpp"
 #include <infinity/core/Context.h>
 #include <infinity/queues/QueuePairFactory.h>
 #include <infinity/queues/QueuePair.h>
@@ -10,11 +10,14 @@
 #include <infinity/requests/RequestToken.h>
 
 #define DEFAULT_SIZE 100000 / ENTRY_WIDTH
-Cuckoo<int, int> *store = NULL;
+//Cuckoo<int, int> *store = NULL;
 
 int main(int argc, char** argv) {
   const int PORT_NUMBER = 8011; //get from environment setup in future
-  GlobalView environment = Parser::getEnvironment();
+  //GlobalView environment = Parser::getEnvironment();
+  infinity::core::Context *context = new infinity::core::Context();
+  infinity::queues::QueuePairFactory *qpFactory = new  infinity::queues::QueuePairFactory(context);
+  infinity::queues::QueuePair *qp;
 
 	printf("Creating buffers to read from and write to\n");
 	infinity::memory::Buffer *bufferToReadWrite = new infinity::memory::Buffer(context, 128 * sizeof(char));
@@ -39,5 +42,5 @@ int main(int argc, char** argv) {
 	delete qpFactory;
 	delete context;
 
-  store = new Cuckoo<int, int>(DEFAULT_SIZE);
+  //store = new Cuckoo<int, int>(DEFAULT_SIZE);
 }
