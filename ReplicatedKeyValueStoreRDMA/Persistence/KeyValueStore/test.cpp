@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
   );
   
   /* Populate set */
-  Cuckoo<int, int> *set = new Cuckoo<int, int>(initial * 5);
+  Cuckoo<int, int> *set = new Cuckoo<int, int>(initial);
   val_t last = 0; 
   val_t val = 0, val_2 = 0;
   printf("Adding %d entries to set\n", initial);

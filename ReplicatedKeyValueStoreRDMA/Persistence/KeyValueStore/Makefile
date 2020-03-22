@@ -1,6 +1,6 @@
 ROOT = ./
 
-EXTRA_FLAGS = -pthread -lpthread -O3 -std=c++11 -I../../Common/
+EXTRA_FLAGS = -pthread -lpthread -g -std=c++11 -I../../Common/
 .PHONY:	all clean
 
 all:	main
