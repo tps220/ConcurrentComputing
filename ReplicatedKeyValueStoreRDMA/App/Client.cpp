@@ -27,6 +27,9 @@ volatile int stop = 0;
 barrier_t local_barrier; //need a local and global barrier in order to coordinate timing across and within nodes
 Remote* remote = NULL;
 
+#define READ_TXS true
+
+#ifdef READ_WRITE_TXS
 void execute_remote_txs(Thread_Data *thread) {
   int unext, last = -1; 
   val_t val = 0, val_2 = 0;
@@ -101,6 +104,30 @@ void execute_remote_txs(Thread_Data *thread) {
 
   return;
 }
+#elif READ_TXS
+void execute_remote_txs(Thread_Data *thread) {
+  int unext, last = -1; 
+  val_t val = 0, val_2 = 0;
+  thread_benchmark* data = thread -> benchmark;
+
+  barrier_cross(&local_barrier);
+  
+  // Is the first op a write?
+  unext = (rand_range_re(&data -> seed, 100) - 1 < data -> update);
+    
+  while (stop == 0) {
+      val = rand_range_re(&data -> seed, data -> range);
+      RESULT retval = remote -> get(val);
+      if (retval == RESULT::TRUE) {
+        data -> nb_found++;
+      }
+      else if (retval == RESULT::ABORT_FAILURE) {
+        data -> nb_aborted++;
+      }
+  }
+  return;
+}
+#endif
 
 ExperimentResult run(
   const int update,
@@ -137,7 +164,7 @@ ExperimentResult run(
   }
 
   //5 As a single node, await distributed barrier
-  remote -> awaitMaster();
+  //remote -> awaitMaster();
 
   //6 Record Time and Cross Barrier
   struct timeval start, end;
@@ -203,7 +230,7 @@ int main(int argc, char **argv) {
 	}
 
   GlobalView environment = Parser::getEnvironment();
-  remote = new Remote(environment.nodes);
+  remote = new Remote(environment);
 
   ExperimentResult result = run(
     update,
@@ -275,7 +302,7 @@ int main(int argc, char **argv) {
 
 
   //cleanup
-  remote -> sendData(reads, effreads, updates, effupds, aborted);
+  //remote -> sendData(reads, effreads, updates, effupds, aborted);
   delete remote; //end connections
 	exit(0);
 }

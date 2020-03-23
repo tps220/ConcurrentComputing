@@ -28,7 +28,7 @@ struct Node {
 
 struct RDMAConnection {
   infinity::core::Context *context;
-	infinity::queues::QueuePair *qp;
+  infinity::queues::QueuePair *qp;
   infinity::memory::RegionToken *remoteBufferToken;
   RDMAConnection(infinity::core::Context *context, infinity::queues::QueuePair *qp, infinity::memory::RegionToken *remoteBufferToken) : context(context), qp(qp), remoteBufferToken(remoteBufferToken) {}
 };
@@ -38,7 +38,7 @@ private:
   GlobalView environment;
   unsigned int numNodes;
   std::vector<RDMAConnection> connections;
-  pthread_mutex_lock** locks;
+  pthread_mutex_t* locks;
   unsigned int hash(int key, FUNCTION func);
 public:
   Remote(GlobalView environment);

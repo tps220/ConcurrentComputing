@@ -2,6 +2,7 @@
 #include "Benchmark.hpp"
 #include <iostream>
 #include <stdlib.h>
+#include <pthread.h>
 
 static unsigned int g_seed = 99;
 inline int fastrand() { 
@@ -9,7 +10,7 @@ inline int fastrand() {
   return (g_seed >> 16) & 0x7FFF; 
 }
 
-inline RESULT findElement(const Node* elements) {
+inline RESULT findElement(const Node* elements, int key) {
   for (int i = 0; i < ENTRY_WIDTH; i++) {
     if (elements[i].key == key) {
       return RESULT::TRUE;
@@ -21,29 +22,29 @@ inline RESULT findElement(const Node* elements) {
 Remote::Remote(GlobalView environment) : numNodes(environment.nodes.size()) {
   for (ServerNode node : environment.nodes) {
     infinity::core::Context *context = new infinity::core::Context();
-	  infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
+	infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
 
     printf("Connecting to remote node %s %d\n", node.server, node.port);
 
-	  infinity::queues::QueuePair *qp = qpFactory -> connectToRemoteHost(node.server, node.port);
-	  infinity::memory::RegionToken *remoteBufferToken = (infinity::memory::RegionToken *) qp->getUserData();
+	infinity::queues::QueuePair *qp = qpFactory -> connectToRemoteHost(node.server, node.port);
+	infinity::memory::RegionToken *remoteBufferToken = (infinity::memory::RegionToken *) qp->getUserData();
     connections.push_back(RDMAConnection(context, qp, remoteBufferToken));
   }
 
-  this -> locks = new pthread_mutex_lock*[environment.clientsPerServer];
+  this -> locks = new pthread_mutex_t[environment.clientsPerServer];
   for (int i = 0; i < environment.clientsPerServer; i++) {
-    pthread_mutex_init(this -> locks[i], NULL);
+    pthread_mutex_init(&this -> locks[i], NULL);
   }
 }
 
-~Remote::Remote() {
+Remote::~Remote() {
   for (RDMAConnection connection : this -> connections) {
     delete connection.qp;
     delete connection.context;
   }
 
   for (int i = 0; i < environment.clientsPerServer; i++) {
-    pthread_mutex_destroy(this -> locks[i]);
+    pthread_mutex_destroy(&this -> locks[i]);
   }
   delete this -> locks;
 }
@@ -57,12 +58,12 @@ unsigned int Remote::hash(int key, FUNCTION func) {
   }
 }
 
-RESULT get(int key) {
+RESULT Remote::get(int key) {
   const int targetId = fastrand() % this -> numNodes,
-            index = hash(key, PRIMARY);
-            read_offset = index * ENTRY_WIDTH * sizeof(Node); 
-            secondary_index = hash(key, SECONDARY);
-            secondary_read_offset = secondary_index * ENTRY_WIDTH * sizeof(Node);
+            index = hash(key, PRIMARY),
+            read_offset = index * ENTRY_WIDTH * sizeof(Node),
+            secondary_index = hash(key, SECONDARY),
+            secondary_read_offset = secondary_index * ENTRY_WIDTH * sizeof(Node),
             read_length = ENTRY_WIDTH * sizeof(Node);
   RESULT retval = RESULT::FALSE;
 
@@ -75,16 +76,16 @@ RESULT get(int key) {
   infinity::memory::Buffer *buffer1Sided = new infinity::memory::Buffer(context, 8 * sizeof(Node));
   infinity::requests::RequestToken requestToken(context);
 
-  qp -> read(buffer1Sided, 0, remoteBufferToken, read_offset, read_length, OperationFlags(), &requestToken); //one sided read, locally ofset by 0, remotely offset by location of key, read length of 8 Nodes, default operation falgs (fenced, signaled, inlined set to false)
-	requestToken.waitUntilCompleted();
-  retval = findElement((Node*)buffer1Sided -> getData());
+  qp -> read(buffer1Sided, 0, remoteBufferToken, read_offset, read_length, infinity::queues::OperationFlags(), &requestToken); //one sided read, locally ofset by 0, remotely offset by location of key, read length of 8 Nodes, default operation falgs (fenced, signaled, inlined set to false)
+  requestToken.waitUntilCompleted();
+  retval = findElement((Node*)buffer1Sided -> getData(), key);
 
   if (retval == RESULT::FALSE) {
-      qp -> read(buffer1Sided, 0, remoteBufferToken, secondary_read_offset, read_length, OperationFlags(), &requestToken); //one sided read, locally ofset by 0, remotely offset by location of key, read length of 8 Nodes, default operation falgs (fenced, signaled, inlined set to false)
-	    requestToken.waitUntilCompleted();
-      retval = findElement((Node*)buffer1Sided -> getData());
+    qp -> read(buffer1Sided, 0, remoteBufferToken, secondary_read_offset, read_length, infinity::queues::OperationFlags(), &requestToken); //one sided read, locally ofset by 0, remotely offset by location of key, read length of 8 Nodes, default operation falgs (fenced, signaled, inlined set to false)
+	requestToken.waitUntilCompleted();
+    retval = findElement((Node*)buffer1Sided -> getData(), key);
   }
-  pthread_mutex_unlock(&this -> lock[targetId]);
+  pthread_mutex_unlock(&this -> locks[targetId]);
 
   delete buffer1Sided;
   return retval;
