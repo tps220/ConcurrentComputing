@@ -37,6 +37,7 @@ public:
   }
 
   Table(unsigned int size) {
+    //this -> elements = new Node<K, V>[size * ENTRY_WIDTH + size]; //contiguous block of elements + CAS locks
     this -> elements = new Node<K, V>*[size];
     for (int i = 0; i < size; i++) {
       elements[i] = new Node<K, V>[ENTRY_WIDTH]();
@@ -88,6 +89,14 @@ public:
   Node<K, V> getElement(int idx, int slot) {
     return this -> elements[idx][slot];
   }
+
+  void setElement(int idx, int slot, Node<K, V> element) {
+    this -> elements[idx][slot] = element;
+  }
+
+  void setKey(int idx, int slot, K key) {
+    this -> elements[idx][slot].key = key;
+  }
 };
 
 enum STATUS {
@@ -133,7 +142,7 @@ public:
       else if (result.status == RETRY) {
         continue;
       }
-      this -> table -> elements[result.index][result.slot] = element;
+      this -> table -> setElement(result.index, result.slot, element);
       unlock_two(idx1, idx2);
       return result.status == DUPLICATE ? RESULT::DUP : RESULT::TRUE;
     }
@@ -144,10 +153,10 @@ public:
     this -> lock_two(idx1, idx2);
     int slot;
     if ((slot = this -> table -> findSlot(key, idx1)) != -1) {
-      this -> table -> elements[idx1][slot].key = EMPTY;
+      this -> table -> setKey(idx1, slot, EMPTY);
     }
     else if ((slot = this -> table -> findSlot(key, idx2)) != -1) {
-      this -> table -> elements[idx2][slot].key = EMPTY;
+      this -> table -> setKey(idx2, slot, EMPTY);
     }
     this -> unlock_two(idx1, idx2);
     return slot != -1 ? RESULT::TRUE : RESULT::FALSE;
@@ -168,6 +177,14 @@ public:
       }
     }
     return size;
+  }
+
+  void* getRawData() {
+    return (void*)this -> table -> elements;
+  }
+
+  unsigned int getStorageSize() {
+    return this -> buckets * ENTRY_WIDTH * sizeof(Node<K, V>);
   }
 
   Cuckoo(unsigned int buckets) : buckets(buckets) {
@@ -339,8 +356,7 @@ private:
     while (!q.empty()) {
       Point point = q.front();
       q.pop();
-      Node<K, V>* bucket = this -> getBucket(point); 
-      Node<K, V> element = bucket[point.pathcode % ENTRY_WIDTH];
+      Node<K, V> element = table -> getElement(point.index, point.pathcode % ENTRY_WIDTH);
 
       if (paths.find(element.key) != paths.end()) { //in a loop
           return Point(-1, -1, -1, -1);
@@ -363,10 +379,6 @@ private:
       }
     }
     return Point(-1, -1, -1, -1);
-  }
-
-  Node<K, V>* getBucket(Point point) {
-    return this -> table -> elements[point.index];
   }
 
   InsertResult insert(Node<K, V> element, const int idx1, const int idx2) {
@@ -463,9 +475,19 @@ private:
         }
         return { RETRY, 0, 0, 0 };
       }
-      
-      this -> table -> elements[path.index[depth]][path.slot[depth]] = this -> table -> elements[path.index[depth - 1]][path.slot[depth - 1]];
-      this -> table -> elements[path.index[depth - 1]][path.slot[depth - 1]].key = EMPTY;
+      this -> table -> setElement(
+        path.index[depth],
+        path.slot[depth],
+        this -> table -> getElement(
+          path.index[depth - 1],
+          path.slot[depth - 1]
+        )
+      );
+      this -> table -> setKey(
+        path.index[depth - 1],
+        path.slot[depth - 1],
+        EMPTY
+      );
 
       if (depth == 1) {
         if (path.index[depth] != idx1 && path.index[depth] != idx2) {

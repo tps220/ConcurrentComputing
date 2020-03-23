@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
 	}
 
   GlobalView environment = Parser::getEnvironment();
-  remote = Remote::initialize(environment);
+  remote = new Remote(environment.nodes);
 
   ExperimentResult result = run(
     update,

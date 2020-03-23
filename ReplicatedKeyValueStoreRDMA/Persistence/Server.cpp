@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdlib.h>
-//#include "Cuckoo.hpp"
-//#include "Parser.hpp"
+#include "Cuckoo.hpp"
+#include "Parser.hpp"
 #include <infinity/core/Context.h>
 #include <infinity/queues/QueuePairFactory.h>
 #include <infinity/queues/QueuePair.h>
@@ -10,37 +10,50 @@
 #include <infinity/requests/RequestToken.h>
 
 #define DEFAULT_SIZE 100000 / ENTRY_WIDTH
-//Cuckoo<int, int> *store = NULL;
+Cuckoo<int, int> *store = NULL;
+
+struct RDMAConnection {
+  infinity::core::Context *context;
+	infinity::queues::QueuePair *qp;
+  RDMAConnection(infinity::core::Context *context, infinity::queues::QueuePair *qp) : context(context), qp(qp) {}
+};
+
+void connection_handler(RDMAConnection connection) {
+	infinity::core::Context *context = connection.context;
+	while (1) {
+		infinity::core::receive_element_t receiveElement;
+		while (!context->receive(&receiveElement));
+		context->postReceiveBuffer(receiveElement.buffer);
+
+		//handle operation
+	}
+}
 
 int main(int argc, char** argv) {
   const int PORT_NUMBER = 8011; //get from environment setup in future
-  //GlobalView environment = Parser::getEnvironment();
-  infinity::core::Context *context = new infinity::core::Context();
-  infinity::queues::QueuePairFactory *qpFactory = new  infinity::queues::QueuePairFactory(context);
-  infinity::queues::QueuePair *qp;
+  GlobalView environment = Parser::getEnvironment();
+  store = new Cuckoo<int, int>(DEFAULT_SIZE);
+	std::vector<std::thread> threads;
 
-	printf("Creating buffers to read from and write to\n");
-	infinity::memory::Buffer *bufferToReadWrite = new infinity::memory::Buffer(context, 128 * sizeof(char));
-	infinity::memory::RegionToken *bufferToken = bufferToReadWrite->createRegionToken();
+	for (int i = 0; i < environment.nodes.size(); i++) {
+		infinity::core::Context *context = new infinity::core::Context();
+  	infinity::queues::QueuePairFactory *qpFactory = new  infinity::queues::QueuePairFactory(context);
+  	infinity::queues::QueuePair *qp;
 
-	printf("Creating buffers to receive a message\n");
-	infinity::memory::Buffer *bufferToReceive = new infinity::memory::Buffer(context, 128 * sizeof(char));
-	context->postReceiveBuffer(bufferToReceive);
+		printf("Creating buffers to read from and write to\n");
+		infinity::memory::Buffer *bufferToReadWrite = new infinity::memory::Buffer(context, store -> getRawData(), store -> getStorageSize());
+		infinity::memory::RegionToken *bufferToken = bufferToReadWrite->createRegionToken();
 
-	printf("Setting up connection (blocking)\n");
-	qpFactory->bindToPort(PORT_NUMBER);
-	qp = qpFactory->acceptIncomingConnection(bufferToken, sizeof(infinity::memory::RegionToken));
+		printf("Creating buffers to receive a message\n");
+		infinity::memory::Buffer *bufferToReceive = new infinity::memory::Buffer(context, 128 * sizeof(char));
+		context->postReceiveBuffer(bufferToReceive);
 
-	printf("Waiting for message (blocking)\n");
-	infinity::core::receive_element_t receiveElement;
-	while(!context->receive(&receiveElement));
+		printf("Setting up connection (blocking)\n");
+		qpFactory->bindToPort(PORT_NUMBER);
+		qp = qpFactory->acceptIncomingConnection(bufferToken, sizeof(infinity::memory::RegionToken));
 
-	printf("Message received\n");
-	delete bufferToReadWrite;
-	delete bufferToReceive;
-  delete qp;
-	delete qpFactory;
-	delete context;
-
-  //store = new Cuckoo<int, int>(DEFAULT_SIZE);
+		RDMAConnection connection(context, qp);
+		threads.push_back(std::thread(connection_handler, connection));
+	}
+	while(1) {}
 }
