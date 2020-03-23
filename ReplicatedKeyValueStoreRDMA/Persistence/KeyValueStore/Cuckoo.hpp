@@ -22,26 +22,22 @@ inline int fastrand() {
 template <typename K, typename V>
 class Table {
 public:
-  Node<K, V>** elements;
+  Node<K, V>* elements;
 
   static bool isOccupied(Node<K, V> element) {
     return element.key != EMPTY;
   }
 
-  static bool isOccupied(Node<K, V> *bucket, int slot) {
-    return isOccupied(bucket[slot]);
-  }
-
   bool isOccupied(int idx, int slot) {
-    return isOccupied(this -> elements[idx][slot]);
+    return isOccupied(this -> elements[idx * ENTRY_WIDTH + slot]);
   }
 
   Table(unsigned int size) {
-    //this -> elements = new Node<K, V>[size * ENTRY_WIDTH + size]; //contiguous block of elements + CAS locks
-    this -> elements = new Node<K, V>*[size];
-    for (int i = 0; i < size; i++) {
-      elements[i] = new Node<K, V>[ENTRY_WIDTH]();
-    }
+    this -> elements = new Node<K, V>[size * ENTRY_WIDTH + size]; //contiguous block of elements + CAS locks
+  }
+
+  Node<K, V>* getOffset(int idx) {
+    return (this -> elements + idx * ENTRY_WIDTH);
   }
 
   bool find(Node<K, V> element, int idx) {
@@ -49,7 +45,7 @@ public:
   }
 
   bool find(K key, int idx) {
-    Node<K, V> *bucket = this -> elements[idx];
+    Node<K, V> *bucket = this -> getOffset(idx);
     for (int i = 0; i < ENTRY_WIDTH; i++) {
       if (bucket[i].key == key) {
         return true;
@@ -63,7 +59,7 @@ public:
   }
 
   int findSlot(K key, int idx) {
-    Node<K, V> *bucket = this -> elements[idx];
+    Node<K, V> *bucket = this -> getOffset(idx);
     for (int i = 0; i < ENTRY_WIDTH; i++) {
       if (bucket[i].key == key) {
         return i;
@@ -73,7 +69,7 @@ public:
   }
   
   int isAvailable(int idx) {
-    Node<K, V> *bucket = this -> elements[idx];
+    Node<K, V> *bucket = this -> getOffset(idx);
     for (int i = 0; i < ENTRY_WIDTH; i++) {
       if (!isOccupied(bucket[i])) {
         return i;
@@ -83,19 +79,19 @@ public:
   }
 
   bool isAvailable(int idx, int slot) {
-    return !isOccupied(this -> elements[idx][slot]);
+    return !isOccupied(idx, slot);
   }
 
   Node<K, V> getElement(int idx, int slot) {
-    return this -> elements[idx][slot];
+    return this -> elements[idx * ENTRY_WIDTH + slot];
   }
 
   void setElement(int idx, int slot, Node<K, V> element) {
-    this -> elements[idx][slot] = element;
+    this -> elements[idx * ENTRY_WIDTH + slot] = element;
   }
 
   void setKey(int idx, int slot, K key) {
-    this -> elements[idx][slot].key = key;
+    this -> elements[idx * ENTRY_WIDTH + slot].key = key;
   }
 };
 
