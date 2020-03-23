@@ -362,7 +362,7 @@ private:
       const int start_slot = fastrand() % ENTRY_WIDTH;
       for (int i = 0; i < ENTRY_WIDTH; i++) {
         const int slot = (start_slot + i) % ENTRY_WIDTH;
-        if (!Table<K, V>::isOccupied(bucket, slot)) {
+        if (!table -> isOccupied(point.index, slot)) {
           point.pathcode = point.pathcode * ENTRY_WIDTH + slot;
           return point;
         }
