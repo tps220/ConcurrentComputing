@@ -61,7 +61,7 @@ BUILD_DIRECTORIES   = $(patsubst $(INFINITY_SOURCE_FOLDER)/%,$(BUILD_FOLDER)/%,$
 
 ##################################################
 
-all: library server
+all: library server client
 
 ##################################################
 
@@ -90,5 +90,11 @@ clean:
 server:
 	mkdir -p $(RELEASE_FOLDER)/$(SERVER_FOLDER)
 	$(CC) Persistence/Server.cpp $(CC_FLAGS) $(LD_FLAGS) -I $(RELEASE_FOLDER)/$(INCLUDE_FOLDER) -L $(RELEASE_FOLDER) -o $(RELEASE_FOLDER)/$(SERVER_FOLDER)/server
+
+##################################################
+
+client:
+	mkdir -p $(RELEASE_FOLDER)/$(CLIENT_FOLDER)
+	$(CC) App/RdmaTest.cpp $(CC_FLAGS) $(LD_FLAGS) -I $(RELEASE_FOLDER)/$(INCLUDE_FOLDER) -L $(RELEASE_FOLDER) -o $(RELEASE_FOLDER)/$(CLIENT_FOLDER)/client
 
 ##################################################
