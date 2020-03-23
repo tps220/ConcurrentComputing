@@ -19,6 +19,9 @@ LD_FLAGS        = -linfinity -libverbs
 
 INFINITY_LIB_NAME = libinfinity
 INFINITY_SOURCE_FOLDER = infinity/src
+CLIENT_SOURCE_FOLDER = App
+SERVER_SOURCE_FOLDER = Persistence
+COMMON_SOURCE_FOLDER = Common
 BUILD_FOLDER     = build
 RELEASE_FOLDER   = release
 INCLUDE_FOLDER   = include
@@ -53,6 +56,20 @@ INFINITY_HEADER_FILES = $(INFINITY_SOURCE_FOLDER)/infinity/infinity.h \
 						$(INFINITY_SOURCE_FOLDER)/infinity/utils/Debug.h \
 						$(INFINITY_SOURCE_FOLDER)/infinity/utils/Address.h
 
+CLIENT_SOURCE_FILES =	$(CLIENT_SOURCE_FOLDER)/Client.cpp \
+						$(CLIENT_SOURCE_FOLDER)/Remote.cpp \
+						$(COMMON_SOURCE_FOLDER)/Connection.cpp \
+						$(COMMON_SOURCE_FOLDER)/Message.cpp
+
+CLIENT_HEADER_FILES = $(CLIENT_SOURCE_FOLDER)/Remote.hpp \
+						$(CLIENT_SOURCE_FOLDER)/Benchmark.hpp \
+						$(COMMON_SOURCE_FOLDER)/Connection.hpp \
+						$(CLIENT_SOURCE_FOLDER)/Parser.hpp \
+						$(COMMON_SOURCE_FOLDER)/Result.hpp \
+						$(CLIENT_SOURCE_FOLDER)/ServerNode.hpp \
+						$(COMMON_SOURCE_FOLDER)/Message.hpp
+
+
 ##################################################
 
 OBJECT_FILES        = $(patsubst $(INFINITY_SOURCE_FOLDER)/%.cpp,$(BUILD_FOLDER)/%.o,$(INFINITY_SOURCE_FILES))
@@ -86,15 +103,17 @@ clean:
 	rm -rf $(RELEASE_FOLDER)
 
 ##################################################
-
 server:
 	mkdir -p $(RELEASE_FOLDER)/$(SERVER_FOLDER)
-	$(CC) Persistence/Server.cpp $(CC_FLAGS) $(LD_FLAGS) -I $(RELEASE_FOLDER)/$(INCLUDE_FOLDER) -L $(RELEASE_FOLDER) -o $(RELEASE_FOLDER)/$(SERVER_FOLDER)/server
+	$(CC) Persistence/Server.cpp $(CC_FLAGS) $(LD_FLAGS) -I $(SERVER_SOURCE_FOLDER)/KeyValueStore $(COMMON_SOURCE_FOLDER) $(RELEASE_FOLDER)/$(INCLUDE_FOLDER) -L $(RELEASE_FOLDER) -o $(RELEASE_FOLDER)/$(SERVER_FOLDER)/server
 
 ##################################################
 
 client:
 	mkdir -p $(RELEASE_FOLDER)/$(CLIENT_FOLDER)
-	$(CC) App/RdmaTest.cpp $(CC_FLAGS) $(LD_FLAGS) -I $(RELEASE_FOLDER)/$(INCLUDE_FOLDER) -L $(RELEASE_FOLDER) -o $(RELEASE_FOLDER)/$(CLIENT_FOLDER)/client
+	mkdir -p $(BUILD_FOLDER)/$(CLIENT_FOLDER)
+	$(CC) $(CC_FLAGS) -c $(CLIENT_SOURCE_FOLDER)/Remote.cpp -I./$(CLIENT_SOURCE_FOLDER) -I./$(COMMON_SOURCE_FOLDER) -o $(BUILD_FOLDER)/$(CLIENT_FOLDER)/Remote.o
+	$(CC) $(CC_FLAGS) -c $(CLIENT_SOURCE_FOLDER)/Client.cpp -I./$(CLIENT_SOURCE_FOLDER) -I./$(COMMON_SOURCE_FOLDER) -o $(BUILD_FOLDER)/$(CLIENT_FOLDER)/Client.o
+	$(CC) $(BUILD_FOLDER)/$(CLIENT_FOLDER)/Remote.o $(BUILD_FOLDER)/$(CLIENT_FOLDER)/Client.o $(CC_FLAGS) $(LD_FLAGS) -I $(RELEASE_FOLDER)/$(INCLUDE_FOLDER) -L $(RELEASE_FOLDER) -o $(RELEASE_FOLDER)/$(CLIENT_FOLDER)/client
 
 ##################################################

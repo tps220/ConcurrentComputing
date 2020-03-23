@@ -9,8 +9,17 @@
 #include <infinity/memory/RegionToken.h>
 #include <infinity/requests/RequestToken.h>
 
+#define DEFAULT_RANGE 200000
+#define INITIAL_SIZE 10000
 #define DEFAULT_SIZE 100000 / ENTRY_WIDTH
 Cuckoo<int, int> *store = NULL;
+
+void populate_store() {
+	for (int i = 0; i < INITIAL_SIZE; i++) {
+		Node<int, int> element(fastrand() % DEFAULT_RANGE, fastrand() % DEFAULT_RANGE);
+		store -> insert(element);
+	}
+}
 
 struct RDMAConnection {
   infinity::core::Context *context;
@@ -33,8 +42,9 @@ int main(int argc, char** argv) {
   const int PORT_NUMBER = 8011; //get from environment setup in future
   GlobalView environment = Parser::getEnvironment();
   store = new Cuckoo<int, int>(DEFAULT_SIZE);
+	populate_store();
+	
 	std::vector<std::thread> threads;
-
 	for (int i = 0; i < environment.nodes.size(); i++) {
 		infinity::core::Context *context = new infinity::core::Context();
   	infinity::queues::QueuePairFactory *qpFactory = new  infinity::queues::QueuePairFactory(context);

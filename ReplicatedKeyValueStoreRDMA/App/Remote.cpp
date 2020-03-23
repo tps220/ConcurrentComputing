@@ -60,9 +60,9 @@ unsigned int Remote::hash(int key, FUNCTION func) {
 RESULT get(int key) {
   const int targetId = fastrand() % this -> numNodes,
             index = hash(key, PRIMARY);
-            read_offset = index * sizeof(Node*); 
+            read_offset = index * ENTRY_WIDTH * sizeof(Node); 
             secondary_index = hash(key, SECONDARY);
-            secondary_read_offset = secondary_index * sizeof(Node*);
+            secondary_read_offset = secondary_index * ENTRY_WIDTH * sizeof(Node);
             read_length = ENTRY_WIDTH * sizeof(Node);
   RESULT retval = RESULT::FALSE;
 

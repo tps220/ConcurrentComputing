@@ -180,7 +180,7 @@ public:
   }
 
   unsigned int getStorageSize() {
-    return this -> buckets * ENTRY_WIDTH * sizeof(Node<K, V>);
+    return this -> buckets * (ENTRY_WIDTH + 1) * sizeof(Node<K, V>);
   }
 
   Cuckoo(unsigned int buckets) : buckets(buckets) {
