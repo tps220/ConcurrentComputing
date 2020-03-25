@@ -14,6 +14,14 @@
 #define INITIAL_SIZE 10000
 #define DEFAULT_SIZE 100000 / ENTRY_WIDTH
 Cuckoo<int, int> *store = NULL;
+
+struct RDMAConnection {
+  infinity::core::Context *context;
+  infinity::queues::QueuePair *qp;
+  RDMAConnection(infinity::core::Context *context, infinity::queues::QueuePair *qp) : context(context), qp(qp) {}
+  RDMAConnection() : context(NULL), qp(NULL) {}
+};
+
 RDMAConnection** connections = NULL;
 
 void populate_store() {
@@ -22,12 +30,6 @@ void populate_store() {
     store -> insert(element);
   }
 }
-
-struct RDMAConnection {
-  infinity::core::Context *context;
-  infinity::queues::QueuePair *qp;
-  RDMAConnection(infinity::core::Context *context, infinity::queues::QueuePair *qp) : context(context), qp(qp) {}
-};
 
 void connection_handler(RDMAConnection connection) {
 	infinity::core::Context *context = connection.context;
