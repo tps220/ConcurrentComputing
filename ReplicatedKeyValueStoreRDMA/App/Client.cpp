@@ -124,6 +124,7 @@ void execute_remote_txs(Thread_Data *thread) {
       else if (retval == RESULT::ABORT_FAILURE) {
         data -> nb_aborted++;
       }
+      data -> nb_contains++;
   }
   return;
 }
