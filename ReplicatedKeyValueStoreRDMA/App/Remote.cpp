@@ -22,12 +22,12 @@ inline RESULT findElement(const Node* elements, int key) {
 Remote::Remote(GlobalView environment) : numNodes(environment.nodes.size()) {
   for (ServerNode node : environment.nodes) {
     infinity::core::Context *context = new infinity::core::Context();
-	infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
+	  infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
 
     printf("Connecting to remote node %s %d\n", node.server, node.port);
 
-	infinity::queues::QueuePair *qp = qpFactory -> connectToRemoteHost(node.server, node.port);
-	infinity::memory::RegionToken *remoteBufferToken = (infinity::memory::RegionToken *) qp->getUserData();
+	  infinity::queues::QueuePair *qp = qpFactory -> connectToRemoteHost(node.server, node.port);
+	  infinity::memory::RegionToken *remoteBufferToken = (infinity::memory::RegionToken *) qp->getUserData();
     connections.push_back(RDMAConnection(context, qp, remoteBufferToken));
   }
 
@@ -61,8 +61,9 @@ unsigned int Remote::hash(int key, FUNCTION func) {
 RESULT Remote::get(int key) {
   const int targetId = fastrand() % this -> numNodes,
             index = hash(key, PRIMARY),
-            read_offset = index * ENTRY_WIDTH * sizeof(Node),
-            secondary_index = hash(key, SECONDARY),
+            secondary_index = hash(key, SECONDARY);
+  
+  const int read_offset = index * ENTRY_WIDTH * sizeof(Node),
             secondary_read_offset = secondary_index * ENTRY_WIDTH * sizeof(Node),
             read_length = ENTRY_WIDTH * sizeof(Node);
   RESULT retval = RESULT::FALSE;
@@ -82,7 +83,7 @@ RESULT Remote::get(int key) {
 
   if (retval == RESULT::FALSE) {
     qp -> read(buffer1Sided, 0, remoteBufferToken, secondary_read_offset, read_length, infinity::queues::OperationFlags(), &requestToken); //one sided read, locally ofset by 0, remotely offset by location of key, read length of 8 Nodes, default operation falgs (fenced, signaled, inlined set to false)
-	requestToken.waitUntilCompleted();
+	  requestToken.waitUntilCompleted();
     retval = findElement((Node*)buffer1Sided -> getData(), key);
   }
   pthread_mutex_unlock(&this -> locks[targetId]);

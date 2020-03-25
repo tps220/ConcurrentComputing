@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   const int PORT_NUMBER = 8011; //get from environment setup in future
   GlobalView environment = Parser::getEnvironment();
   store = new Cuckoo<int, int>(DEFAULT_SIZE);
-  populate_store();
+  populate_store(); //only for testing on a single server, otherwise inconsistente state across nodes
 	
   std::vector<std::thread> threads;
   for (int i = 0; i < environment.nodes.size(); i++) {
