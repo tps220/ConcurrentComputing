@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string.h>
+#include <unistd.h>
 #include "ServerNode.hpp"
 
 struct GlobalView {
@@ -41,8 +42,11 @@ public:
     size_t len = 0;
     ssize_t read;
 
-    fp = fopen("../Tests/environment", "r");
+    fp = fopen("Tests/environment", "r");
     if (fp == NULL) {
+      char buff[FILENAME_MAX];
+      getcwd(buff, FILENAME_MAX);
+      fprintf(stderr, "Could not open file, current working directory is: %s\n", buff);
       exit(EXIT_FAILURE);
     }
 
