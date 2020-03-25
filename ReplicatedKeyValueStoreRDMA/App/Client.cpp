@@ -109,6 +109,7 @@ void execute_remote_txs(Thread_Data *thread) {
   int unext, last = -1; 
   val_t val = 0, val_2 = 0;
   thread_benchmark* data = thread -> benchmark;
+  const int threadId = thread -> id;
 
   barrier_cross(&local_barrier);
   
@@ -117,7 +118,7 @@ void execute_remote_txs(Thread_Data *thread) {
     
   while (stop == 0) {
       val = rand_range_re(&data -> seed, data -> range);
-      RESULT retval = remote -> get(val);
+      RESULT retval = remote -> get(val, threadId);
       if (retval == RESULT::TRUE) {
         data -> nb_found++;
       }

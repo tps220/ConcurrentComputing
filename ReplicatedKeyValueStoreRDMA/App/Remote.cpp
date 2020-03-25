@@ -19,34 +19,45 @@ inline RESULT findElement(const Node* elements, int key) {
   return RESULT::FALSE;
 }
 
+//Sharing context as outlined for best performance with limited number of threads
+//by https://www.mcs.anl.gov/~balaji/pubs/2018/icpads/icpads18.verbs_res_sharing.pdf 
 Remote::Remote(GlobalView environment) : numNodes(environment.nodes.size()) {
+  infinity::core::Context *context = new infinity::core::Context();
   for (ServerNode node : environment.nodes) {
-    infinity::core::Context *context = new infinity::core::Context();
-	  infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
+    std::vector<RDMAConnection> thread_connections;
+    for (int i = 0; i < environment.clientsPerServer) {
+	    infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
 
-    printf("Connecting to remote node %s %d\n", node.server, node.port);
+      printf("Connecting to remote node %s %d\n", node.server, node.port);
 
-	  infinity::queues::QueuePair *qp = qpFactory -> connectToRemoteHost(node.server, node.port);
-	  infinity::memory::RegionToken *remoteBufferToken = (infinity::memory::RegionToken *) qp->getUserData();
-    connections.push_back(RDMAConnection(context, qp, remoteBufferToken));
+	    infinity::queues::QueuePair *qp = qpFactory -> connectToRemoteHost(node.server, node.port);
+	    infinity::memory::RegionToken *remoteBufferToken = (infinity::memory::RegionToken *) qp->getUserData();
+      thread_connections.push_back(RDMAConnection(context, qp, remoteBufferToken));
+    }
+    connections.push_back(thread_connections);
   }
 
-  this -> locks = new pthread_mutex_t[environment.clientsPerServer];
-  for (int i = 0; i < environment.clientsPerServer; i++) {
-    pthread_mutex_init(&this -> locks[i], NULL);
-  }
+  /*
+    this -> locks = new pthread_mutex_t[environment.clientsPerServer];
+    for (int i = 0; i < environment.clientsPerServer; i++) {
+      pthread_mutex_init(&this -> locks[i], NULL);
+    }
+  */
 }
 
 Remote::~Remote() {
-  for (RDMAConnection connection : this -> connections) {
-    delete connection.qp;
-    delete connection.context;
+  for (std::vector<RDMAConnection> thread_connections : this -> connection) {
+    for (RDMAConnection connection : thread_connections) {
+      delete connection.qp;
+    }
   }
-
-  for (int i = 0; i < environment.clientsPerServer; i++) {
-    pthread_mutex_destroy(&this -> locks[i]);
-  }
-  delete this -> locks;
+  delete this -> connections[0][0].context; //shared context
+  /*
+    for (int i = 0; i < environment.clientsPerServer; i++) {
+      pthread_mutex_destroy(&this -> locks[i]);
+    }
+    delete this -> locks;
+  */
 }
 
 unsigned int Remote::hash(int key, FUNCTION func) {
@@ -58,7 +69,7 @@ unsigned int Remote::hash(int key, FUNCTION func) {
   }
 }
 
-RESULT Remote::get(int key) {
+RESULT Remote::get(int key, int threadId) {
   const int targetId = fastrand() % this -> numNodes,
             index = hash(key, PRIMARY),
             secondary_index = hash(key, SECONDARY);
@@ -68,9 +79,9 @@ RESULT Remote::get(int key) {
             read_length = ENTRY_WIDTH * sizeof(Node);
   RESULT retval = RESULT::FALSE;
 
-  pthread_mutex_lock(&this -> locks[targetId]);
+  //pthread_mutex_lock(&this -> locks[targetId]);
 
-  RDMAConnection connection = connections[targetId];
+  RDMAConnection connection = connections[threadId][targetId];
   infinity::queues::QueuePair *qp = connection.qp;
   infinity::core::Context *context = connection.context;
   infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
@@ -86,7 +97,8 @@ RESULT Remote::get(int key) {
 	  requestToken.waitUntilCompleted();
     retval = findElement((Node*)buffer1Sided -> getData(), key);
   }
-  pthread_mutex_unlock(&this -> locks[targetId]);
+  
+  //pthread_mutex_unlock(&this -> locks[targetId]);
 
   delete buffer1Sided;
   return retval;

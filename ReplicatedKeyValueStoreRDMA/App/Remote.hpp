@@ -37,14 +37,14 @@ class Remote {
 private:
   GlobalView environment;
   unsigned int numNodes;
-  std::vector<RDMAConnection> connections;
-  pthread_mutex_t* locks;
+  std::vector<std::vector<RDMAConnection>> connections;
+  //pthread_mutex_t* locks;
   unsigned int hash(int key, FUNCTION func);
 public:
   Remote(GlobalView environment);
   ~Remote();
   //void testConnections();
-  RESULT get(int key);
+  RESULT get(int key, int threadId);
   //RESULT insert(std::pair<int, int>);
   //RESULT insert(std::vector<std::pair<int, int>>);
   //void awaitMaster();
