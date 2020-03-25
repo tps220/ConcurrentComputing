@@ -25,7 +25,7 @@ Remote::Remote(GlobalView environment) : numNodes(environment.nodes.size()) {
   infinity::core::Context *context = new infinity::core::Context();
   for (ServerNode node : environment.nodes) {
     std::vector<RDMAConnection> thread_connections;
-    for (int i = 0; i < environment.clientsPerServer) {
+    for (int i = 0; i < environment.clientsPerServer; i++) {
 	    infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
 
       printf("Connecting to remote node %s %d\n", node.server, node.port);
@@ -46,7 +46,7 @@ Remote::Remote(GlobalView environment) : numNodes(environment.nodes.size()) {
 }
 
 Remote::~Remote() {
-  for (std::vector<RDMAConnection> thread_connections : this -> connection) {
+  for (std::vector<RDMAConnection> thread_connections : this -> connections) {
     for (RDMAConnection connection : thread_connections) {
       delete connection.qp;
     }
