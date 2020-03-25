@@ -64,7 +64,9 @@ int main(int argc, char** argv) {
 		qp = qpFactory->acceptIncomingConnection(bufferToken, sizeof(infinity::memory::RegionToken));
 
 		RDMAConnection connection(context, qp);
+		std::cout << "Established connection " << i << std::endl;
 		threads.push_back(std::thread(connection_handler, connection));
 	}
+	std::cout << "Finished opening connections" << std::endl;
 	while(1) {}
 }
