@@ -141,3 +141,76 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   }
 
 }
+
+void Remote::release(std::vector<int> node_ownership_set, const int key) {
+  const int index = hash(key, PRIMARY);
+  const int read_offset = (SIZE + index) * ENTRY_WIDTH * sizeof(Node);
+
+  for (int i = 0; i < node_ownership_set.size(); i++) {
+    const int targetId = node_ownership_set[i];
+    RDMAConnection connection = connections[threadId][targetId];
+    infinity::queues::QueuePair *qp = connection.qp;
+    infinity::core::Context *context = connection.context;
+    infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
+    infinity::memory::Atomic *atomicOperation = connection.atomicOperation;
+    infinity::requests::RequestToken requestToken(context);
+
+    qp -> compareAndSwap(remoteBufferToken, atomicOperation, 1, 0, infinity::queues::OperationFlags(), read_offset, &requestToken); //CAS operation, remotely offset by location of lock, default operation falgs (fenced, signaled, inlined set to false)
+    requestToken.waitUntilCompleted(); //spray and then collect values might be a better approach, offset will be in scenarios of high contention when stopping early might help reduce unnecessary newtork calls
+  }
+}
+
+std::vector<int> Remote::prepareMessage(const int key) {
+  const int node_set_size = this -> connections[threadId].size(),
+            startingId = fastrand() % this -> numNodes,
+            index = hash(key, PRIMARY);
+  
+  const int read_offset = (SIZE + index) * ENTRY_WIDTH * sizeof(Node);
+  std::vector<int> node_ownership_set;
+
+  for (int i = 0; i < node_set_size; i++) {
+    const int targetId = (startingId + i) % node_set_size;
+    RDMAConnection connection = connections[threadId][targetId];
+    infinity::queues::QueuePair *qp = connection.qp;
+    infinity::core::Context *context = connection.context;
+    infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
+    infinity::memory::Atomic *atomicOperation = connection.atomicOperation;
+    infinity::requests::RequestToken requestToken(context);
+
+    qp -> compareAndSwap(remoteBufferToken, atomicOperation, 0, 1, infinity::queues::OperationFlags(), read_offset, &requestToken); //CAS operation, remotely offset by location of lock, default operation falgs (fenced, signaled, inlined set to false)
+    requestToken.waitUntilCompleted(); //spray and then collect values might be a better approach, offset will be in scenarios of high contention when stopping early might help reduce unnecessary newtork calls
+
+    if (atomicOperation -> getValue() == 1) { //previously 1
+      release(node_ownership_set);
+      return std::vector<int>();
+    }
+    node_ownership_set.push_back(targetId);
+  }
+}
+
+/*
+RESULT Remote::insert(std::pair<int, int> element, int threadId) {
+  Node node(element.first, element.second)
+  std::vector<int> node_ownership_set = prepareMessage(node.key);
+  if (node_ownership_set.size() == 0) {
+    return RESULT::ABORT_FAILURE;
+  }
+
+  for (int i = 0; i < node_ownership_set.size(); i++) {
+    const int targetId = node_ownership_set[i];
+    RDMAConnection connection = connections[threadId][targetId];
+    infinity::queues::QueuePair *qp = connection.qp;
+    infinity::core::Context *context = connection.context;
+    infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
+    infinity::requests::RequestToken requestToken(context);
+
+    Node insertion = node;
+    infinity::memory::Buffer *buffer2Sided = new infinity::memory::Buffer(context, &insertion, 8);
+    qp->send(buffer2Sided, &requestToken);
+    requestToken.waitUntilCompleted();
+  }
+
+  release(node_ownership_set, node.key);
+  return RESULT::TRUE;
+}
+*/
