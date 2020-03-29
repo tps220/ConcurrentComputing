@@ -23,7 +23,7 @@ public:
 	Buffer(infinity::core::Context *context, uint64_t sizeInBytes);
 	Buffer(infinity::core::Context *context, infinity::memory::RegisteredMemory *memory, uint64_t offset, uint64_t sizeInBytes);
 	Buffer(infinity::core::Context *context, void *memory, uint64_t sizeInBytes);
-	Buffer(infinity::core::Context *context, void* memory, uint64_t sizeInBytes, enum ibv_access_flags access);
+	Buffer(infinity::core::Context *context, void* memory, uint64_t sizeInBytes, int access);
 	~Buffer();
 
 public:
