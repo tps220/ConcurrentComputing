@@ -47,7 +47,7 @@ public:
   ~Remote();
   //void testConnections();
   RESULT get(int key, int threadId);
-  RESULT insert(std::pair<int, int>);
+  RESULT insert(std::pair<int, int> element, int threadId);
   //RESULT insert(std::vector<std::pair<int, int>>);
   //void awaitMaster();
 };

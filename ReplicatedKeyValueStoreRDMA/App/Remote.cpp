@@ -104,16 +104,19 @@ RESULT Remote::get(int key, int threadId) {
   return retval;
 }
 
-RESULT REMOTE::insert(int key, int threadId) {
+RESULT Remote::insert(std::pair<int, int> element, int threadId) {
+  const int key = element.first,
+            node_set_size = this -> connections[threadId].size();
   const int startingId = fastrand() % this -> numNodes,
             index = hash(key, PRIMARY);
   
   const int read_offset = (SIZE + index) * ENTRY_WIDTH * sizeof(Node),
             read_length = LOCK_WIDTH;
   RESULT retval = RESULT::FALSE;
-
-  for (int i = 0; i < this -> connections[threadId].size(); i++) {
-    RDMAConnection connectin = connections[threadId][targetId];
+  
+  for (int i = 0; i < node_set_size; i++) {
+    const int targetId = (startingId + i) % node_set_size;
+    RDMAConnection connection = connections[threadId][targetId];
     infinity::queues::QueuePair *qp = connection.qp;
     infinity::core::Context *context = connection.context;
     infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
@@ -124,8 +127,9 @@ RESULT REMOTE::insert(int key, int threadId) {
     requestToken.waitUntilCompleted();
   }
 
-  for (int i = 0; i < this -> connections[threadId].size(); i++) {
-    RDMAConnection connectin = connections[threadId][targetId];
+  for (int i = 0; i < node_set_size; i++) {
+    const int targetId = (startingId + i) % node_set_size;
+    RDMAConnection connection = connections[threadId][targetId];
     infinity::queues::QueuePair *qp = connection.qp;
     infinity::core::Context *context = connection.context;
     infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
