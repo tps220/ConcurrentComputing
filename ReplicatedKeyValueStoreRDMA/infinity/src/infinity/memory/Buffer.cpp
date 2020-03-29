@@ -69,10 +69,10 @@ Buffer::Buffer(infinity::core::Context *context, void *memory, uint64_t sizeInBy
 
 }
 
-Buffer::Buffer(infinity::core::Conext *context, void* memory, uint64_t sizeInBytes, enum ibv_access_flags access) {
+Buffer::Buffer(infinity::core::Context *context, void* memory, uint64_t sizeInBytes, enum ibv_access_flags access) {
 	this->context = context;
 	this->sizeInBytes = sizeInBytes;
-	this->memoryRegionType = RegionType::BUFFER;
+	this->memoryRegionType = RegionType::BUFFER; //technically this isn't ture since the ibv_access_flags could be atomic
 
 	this->data = memory;
 	this->ibvMemoryRegion = ibv_reg_mr(this->context->getProtectionDomain(), this->data, this->sizeInBytes, access);
