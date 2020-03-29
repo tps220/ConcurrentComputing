@@ -13,6 +13,7 @@
 
 #define ENTRY_WIDTH 8
 #define SIZE 100000 / ENTRY_WIDTH
+#define LOCK_WIDTH 8
 
 enum FUNCTION {
   PRIMARY = 1,
@@ -45,7 +46,7 @@ public:
   ~Remote();
   //void testConnections();
   RESULT get(int key, int threadId);
-  //RESULT insert(std::pair<int, int>);
+  RESULT insert(std::pair<int, int>);
   //RESULT insert(std::vector<std::pair<int, int>>);
   //void awaitMaster();
 };

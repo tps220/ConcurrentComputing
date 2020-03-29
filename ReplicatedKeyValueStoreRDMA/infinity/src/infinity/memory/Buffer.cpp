@@ -69,6 +69,19 @@ Buffer::Buffer(infinity::core::Context *context, void *memory, uint64_t sizeInBy
 
 }
 
+Buffer::Buffer(infinity::core::Conext *context, void* memory, uint64_t sizeInBytes, enum ibv_access_flags access) {
+	this->context = context;
+	this->sizeInBytes = sizeInBytes;
+	this->memoryRegionType = RegionType::BUFFER;
+
+	this->data = memory;
+	this->ibvMemoryRegion = ibv_reg_mr(this->context->getProtectionDomain(), this->data, this->sizeInBytes, access);
+	INFINITY_ASSERT(this->ibvMemoryRegion != NULL, "[INFINITY][MEMORY][BUFFER] Registration failed.\n");
+
+	this->memoryAllocated = false;
+	this->memoryRegistered = true;
+}
+
 Buffer::~Buffer() {
 
 	if (this->memoryRegistered) {

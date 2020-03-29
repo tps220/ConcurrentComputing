@@ -103,3 +103,24 @@ RESULT Remote::get(int key, int threadId) {
   delete buffer1Sided;
   return retval;
 }
+
+RESULT REMOTE::insert(int key, int threadId) {
+  const int startingId = fastrand() % this -> numNodes,
+            index = hash(key, PRIMARY);
+  
+  const int read_offset = (SIZE + index) * ENTRY_WIDTH * sizeof(Node),
+            read_length = LOCK_WIDTH;
+  RESULT retval = RESULT::FALSE;
+
+  for (int i = 0; i < this -> connections[threadId].size(); i++) {
+    RDMAConnection connectin = connections[threadId][targetId];
+    infinity::queues::QueuePair *qp = connection.qp;
+    infinity::core::Context *context = connection.context;
+    infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
+    infinity::memory::Buffer *buffer1Sided = new infinity::memory::Buffer(context, 8 * sizeof(Node));
+    infinity::requests::RequestToken requestToken(context);
+
+    qp -> read(buffer1Sided, 0, remoteBufferToken, read_offset, read_length, infinity::queues::OperationFlags(), &requestToken); //one sided read, locally ofset by 0, remotely offset by location of key, read length of 8 Nodes, default operation falgs (fenced, signaled, inlined set to false)
+    requestToken.waitUntilCompleted();
+  }
+}

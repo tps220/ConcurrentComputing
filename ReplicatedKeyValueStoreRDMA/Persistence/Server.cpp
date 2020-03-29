@@ -52,7 +52,12 @@ int main(int argc, char** argv) {
 	//as outlined for best performance with limited number of threads
 	//by https://www.mcs.anl.gov/~balaji/pubs/2018/icpads/icpads18.verbs_res_sharing.pdf
 	infinity::core::Context *context = new infinity::core::Context();
-	infinity::memory::Buffer *bufferToReadWrite = new infinity::memory::Buffer(context, store -> getRawData(), store -> getStorageSize());
+	infinity::memory::Buffer *bufferToReadWrite = new infinity::memory::Buffer(
+		context, 
+		store -> getRawData(), 
+		store -> getStorageSize(),
+		IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_ATOMIC | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_REMOTE_WRITE
+	);
 	infinity::memory::RegionToken *bufferToken = bufferToReadWrite -> createRegionToken();
 	connections = new RDMAConnection*[environment.nodes.size()];
 	for (int i = 0; i < environment.nodes.size(); i++) {
