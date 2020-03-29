@@ -31,7 +31,8 @@ struct RDMAConnection {
   infinity::core::Context *context;
   infinity::queues::QueuePair *qp;
   infinity::memory::RegionToken *remoteBufferToken;
-  RDMAConnection(infinity::core::Context *context, infinity::queues::QueuePair *qp, infinity::memory::RegionToken *remoteBufferToken) : context(context), qp(qp), remoteBufferToken(remoteBufferToken) {}
+  infinity::memory::Atomic *atomicOperation;
+  RDMAConnection(infinity::core::Context *ctx, infinity::queues::QueuePair *qp, infinity::memory::RegionToken *remoteBufferToken) : context(ctx), qp(qp), remoteBufferToken(remoteBufferToken), atomicOperation(new infinity::memory::Atomic(ctx)) {}
 };
 
 class Remote {

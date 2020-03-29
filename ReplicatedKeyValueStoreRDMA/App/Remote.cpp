@@ -117,10 +117,23 @@ RESULT REMOTE::insert(int key, int threadId) {
     infinity::queues::QueuePair *qp = connection.qp;
     infinity::core::Context *context = connection.context;
     infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
-    infinity::memory::Buffer *buffer1Sided = new infinity::memory::Buffer(context, 8 * sizeof(Node));
+    infinity::memory::Atomic *atomicOperation = connection.atomicOperation;
     infinity::requests::RequestToken requestToken(context);
 
-    qp -> read(buffer1Sided, 0, remoteBufferToken, read_offset, read_length, infinity::queues::OperationFlags(), &requestToken); //one sided read, locally ofset by 0, remotely offset by location of key, read length of 8 Nodes, default operation falgs (fenced, signaled, inlined set to false)
+    qp -> compareAndSwap(remoteBufferToken, atomicOperation, 0, 1, infinity::queues::OperationFlags(), read_offset, &requestToken); //CAS operation, remotely offset by location of lock, default operation falgs (fenced, signaled, inlined set to false)
     requestToken.waitUntilCompleted();
   }
+
+  for (int i = 0; i < this -> connections[threadId].size(); i++) {
+    RDMAConnection connectin = connections[threadId][targetId];
+    infinity::queues::QueuePair *qp = connection.qp;
+    infinity::core::Context *context = connection.context;
+    infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
+    infinity::memory::Atomic *atomicOperation = connection.atomicOperation;
+    infinity::requests::RequestToken requestToken(context);
+
+    qp -> compareAndSwap(remoteBufferToken, atomicOperation, 1, 0, infinity::queues::OperationFlags(), read_offset, &requestToken); //CAS operation, remotely offset by location of lock, default operation falgs (fenced, signaled, inlined set to false)
+    requestToken.waitUntilCompleted();
+  }
+
 }

@@ -524,6 +524,50 @@ void QueuePair::compareAndSwap(infinity::memory::RegionToken* destination, infin
 
 }
 
+void QueuePair::compareAndSwap(infinity::memory::RegionToken* destination, infinity::memory::Atomic* previousValue, uint64_t compare, uint64_t swap,
+		OperationFlags send_flags, uint64_t remoteOffset, infinity::requests::RequestToken *requestToken) {
+
+	if (requestToken != NULL) {
+		requestToken->reset();
+		requestToken->setRegion(previousValue);
+	}
+
+	struct ibv_sge sgElement;
+	struct ibv_send_wr workRequest;
+	struct ibv_send_wr *badWorkRequest;
+
+	memset(&sgElement, 0, sizeof(ibv_sge));
+	sgElement.addr = previousValue->getAddress();
+	sgElement.length = previousValue->getSizeInBytes();
+	sgElement.lkey = previousValue->getLocalKey();
+
+	memset(&workRequest, 0, sizeof(ibv_send_wr));
+	workRequest.wr_id = reinterpret_cast<uint64_t>(requestToken);
+	workRequest.sg_list = &sgElement;
+	workRequest.num_sge = 1;
+	workRequest.opcode = IBV_WR_ATOMIC_CMP_AND_SWP;
+	workRequest.send_flags = send_flags.ibvFlags();
+	if (requestToken != NULL) {
+		workRequest.send_flags |= IBV_SEND_SIGNALED;
+	}
+	workRequest.wr.atomic.remote_addr = destination->getAddress() + remoteOffset;
+	workRequest.wr.atomic.rkey = destination->getRemoteKey();
+	workRequest.wr.atomic.compare_add = compare;
+	workRequest.wr.atomic.swap = swap;
+
+	/* 	
+		INFINITY_ASSERT(previousValue->getSizeInBytes() <= destination -> getRemainingSizeInBytes(remoteOffset),
+			"[INFINITY][QUEUES][QUEUEPAIR] Segmentation fault while reading from remote memory.\n");
+	*/
+
+	int returnValue = ibv_post_send(this->ibvQueuePair, &workRequest, &badWorkRequest);
+
+	INFINITY_ASSERT(returnValue == 0, "[INFINITY][QUEUES][QUEUEPAIR] Posting cmp-and-swp request failed. %s.\n", strerror(errno));
+
+	INFINITY_DEBUG("[INFINITY][QUEUES][QUEUEPAIR] Cmp-and-swp request created (id %lu).\n", workRequest.wr_id);
+
+}
+
 void QueuePair::compareAndSwap(infinity::memory::RegionToken* destination, uint64_t compare, uint64_t swap, infinity::requests::RequestToken *requestToken) {
 	compareAndSwap(destination, context->defaultAtomic, compare, swap, OperationFlags(), requestToken);
 }
