@@ -14,6 +14,8 @@
 #define INITIAL_SIZE 10000
 #define DEFAULT_SIZE 100000 / ENTRY_WIDTH
 Cuckoo<int, int> *store = NULL;
+#define BUFFERS_PER_CLIENT 4
+#define DEFAULT_BUFFER_SIZE 64
 
 struct RDMAConnection {
   infinity::core::Context *context;
@@ -31,11 +33,14 @@ void populate_store() {
   }
 }
 
-void connection_handler(RDMAConnection connection) {
-	infinity::core::Context *context = connection.context;
+void connection_handler(const int id) {
+	RDMAConnection* thread_connection_set = connections[id];
+	infinity::core::Context *context = thread_connection_set[0].context;
 	while (1) {
 		infinity::core::receive_element_t receiveElement;
 		while (!context->receive(&receiveElement));
+		Node<int, int>* element = receiveElement.buffer -> getData();
+		std::cout << "received (" << element -> key << "," << element -> val << ")" << std::endl;
 		context->postReceiveBuffer(receiveElement.buffer);
 		//handle operation
 	}
@@ -67,18 +72,21 @@ int main(int argc, char** argv) {
   		infinity::queues::QueuePair *qp;
 
 			printf("Creating buffers to receive a message\n");
-			infinity::memory::Buffer *bufferToReceive = new infinity::memory::Buffer(context, 128 * sizeof(char));
-			context->postReceiveBuffer(bufferToReceive);
+			for (int iterator = 0; iterator < BUFFERS_PER_CLIENT; i++) {
+				infinity::memory::Buffer *bufferToReceive = new infinity::memory::Buffer(context, DEFAULT_BUFFER_SIZE);
+				context->postReceiveBuffer(bufferToReceive);
+			}
 
 			printf("Setting up connection (blocking)\n");
 			qpFactory -> bindToPort(PORT_NUMBER);
 			qp = qpFactory->acceptIncomingConnection(bufferToken, sizeof(infinity::memory::RegionToken));
+			context -> registerQueuePair(qp);
 
 		 RDMAConnection connection(context, qp);
 		 connections[i][j] = connection;
 		 std::cout << "Established connection " << i << "," << j << std::endl;
-		 //threads.push_back(std::thread(connection_handler, connection));
 		}
+		threads.push_back(std::thread(connection_handler, i));
 	}
 	std::cout << "Finished opening connections" << std::endl;
 	while(1) {}
