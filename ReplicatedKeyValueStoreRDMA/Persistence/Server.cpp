@@ -9,6 +9,7 @@
 #include <infinity/memory/RegionToken.h>
 #include <infinity/requests/RequestToken.h>
 #include <thread>
+#include "Benchmark.hpp"
 
 #define DEFAULT_RANGE 200000
 #define INITIAL_SIZE 20000
@@ -28,7 +29,7 @@ RDMAConnection** connections = NULL;
 
 void populate_store() {
   for (int i = 0; i < INITIAL_SIZE; i++) {
-    Node<int, int> element(fastrand() % DEFAULT_RANGE, fastrand() % DEFAULT_RANGE);
+    Node<int, int> element(rand_range_re(66, DEFAULT_RANGE), rand_range_re(66, DEFAULT_RANGE));
     store -> insert(element);
   }
 }
