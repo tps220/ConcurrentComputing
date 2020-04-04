@@ -11,7 +11,7 @@
 #include <thread>
 
 #define DEFAULT_RANGE 200000
-#define INITIAL_SIZE 10000
+#define INITIAL_SIZE 20000
 #define DEFAULT_SIZE 100000 / ENTRY_WIDTH
 Cuckoo<int, int> *store = NULL;
 #define BUFFERS_PER_CLIENT 4
