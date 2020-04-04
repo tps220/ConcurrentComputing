@@ -39,7 +39,7 @@ void connection_handler(const int id) {
 	while (1) {
 		infinity::core::receive_element_t receiveElement;
 		while (!context->receive(&receiveElement));
-		Node<int, int>* element = receiveElement.buffer -> getData();
+		Node<int, int>* element = (Node<int, int>*)receiveElement.buffer -> getData();
 		std::cout << "received (" << element -> key << "," << element -> val << ")" << std::endl;
 		context->postReceiveBuffer(receiveElement.buffer);
 		//handle operation
@@ -79,8 +79,7 @@ int main(int argc, char** argv) {
 
 			printf("Setting up connection (blocking)\n");
 			qpFactory -> bindToPort(PORT_NUMBER);
-			qp = qpFactory->acceptIncomingConnection(bufferToken, sizeof(infinity::memory::RegionToken));
-			context -> registerQueuePair(qp);
+			qp = qpFactory->acceptIncomingConnection(bufferToken, sizeof(infinity::memory::RegionToken)); //automatically restiers queue pair to a map bound to the context
 
 		 RDMAConnection connection(context, qp);
 		 connections[i][j] = connection;

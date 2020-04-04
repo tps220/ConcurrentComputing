@@ -48,8 +48,8 @@ public:
   //void testConnections();
   RESULT get(int key, int threadId);
   RESULT insert(std::pair<int, int> element, int threadId);
-  void release(std::vector<int> node_ownership_set, const int key);
-  std::vector<int> prepareMessage(const int key);
+  void release(const int key, const int threadId, std::vector<int> node_ownership_set);
+  std::vector<int> prepareMessage(const int key, const int threadId);
   //RESULT insert(std::vector<std::pair<int, int>>);
   //void awaitMaster();
 };

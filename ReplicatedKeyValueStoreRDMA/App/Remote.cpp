@@ -81,7 +81,7 @@ RESULT Remote::get(int key, int threadId) {
 
   //pthread_mutex_lock(&this -> locks[targetId]);
 
-  RDMAConnection connection = connections[threadId][targetId];
+  RDMAConnection connection = connections[targetId][threadId];
   infinity::queues::QueuePair *qp = connection.qp;
   infinity::core::Context *context = connection.context;
   infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
@@ -106,7 +106,7 @@ RESULT Remote::get(int key, int threadId) {
 
 RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   const int key = element.first,
-            node_set_size = this -> connections[threadId].size();
+            node_set_size = this -> connections.size();
   const int startingId = fastrand() % this -> numNodes,
             index = hash(key, PRIMARY);
   
@@ -116,7 +116,7 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   
   for (int i = 0; i < node_set_size; i++) {
     const int targetId = (startingId + i) % node_set_size;
-    RDMAConnection connection = connections[threadId][targetId];
+    RDMAConnection connection = connections[targetId][threadId];
     infinity::queues::QueuePair *qp = connection.qp;
     infinity::core::Context *context = connection.context;
     infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
@@ -129,7 +129,7 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
 
   for (int i = 0; i < node_set_size; i++) {
     const int targetId = (startingId + i) % node_set_size;
-    RDMAConnection connection = connections[threadId][targetId];
+    RDMAConnection connection = connections[targetId][threadId];
     infinity::queues::QueuePair *qp = connection.qp;
     infinity::core::Context *context = connection.context;
     infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
@@ -142,13 +142,13 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
 
 }
 
-void Remote::release(std::vector<int> node_ownership_set, const int key) {
+void Remote::release(const int key, const int threadId, std::vector<int> node_ownership_set) {
   const int index = hash(key, PRIMARY);
   const int read_offset = (SIZE + index) * ENTRY_WIDTH * sizeof(Node);
 
   for (int i = 0; i < node_ownership_set.size(); i++) {
     const int targetId = node_ownership_set[i];
-    RDMAConnection connection = connections[threadId][targetId];
+    RDMAConnection connection = connections[targetId][threadId];
     infinity::queues::QueuePair *qp = connection.qp;
     infinity::core::Context *context = connection.context;
     infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
@@ -160,8 +160,8 @@ void Remote::release(std::vector<int> node_ownership_set, const int key) {
   }
 }
 
-std::vector<int> Remote::prepareMessage(const int key) {
-  const int node_set_size = this -> connections[threadId].size(),
+std::vector<int> Remote::prepareMessage(const int key, const int threadId) {
+  const int node_set_size = this -> connections.size(),
             startingId = fastrand() % this -> numNodes,
             index = hash(key, PRIMARY);
   
@@ -170,7 +170,7 @@ std::vector<int> Remote::prepareMessage(const int key) {
 
   for (int i = 0; i < node_set_size; i++) {
     const int targetId = (startingId + i) % node_set_size;
-    RDMAConnection connection = connections[threadId][targetId];
+    RDMAConnection connection = connections[targetId][threadId];
     infinity::queues::QueuePair *qp = connection.qp;
     infinity::core::Context *context = connection.context;
     infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
@@ -181,7 +181,7 @@ std::vector<int> Remote::prepareMessage(const int key) {
     requestToken.waitUntilCompleted(); //spray and then collect values might be a better approach, offset will be in scenarios of high contention when stopping early might help reduce unnecessary newtork calls
 
     if (atomicOperation -> getValue() == 1) { //previously 1
-      release(node_ownership_set);
+      release(key, threadId, node_ownership_set);
       return std::vector<int>();
     }
     node_ownership_set.push_back(targetId);
@@ -191,14 +191,14 @@ std::vector<int> Remote::prepareMessage(const int key) {
 /*
 RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   Node node(element.first, element.second)
-  std::vector<int> node_ownership_set = prepareMessage(node.key);
+  std::vector<int> node_ownership_set = prepareMessage(node.key, threadId);
   if (node_ownership_set.size() == 0) {
     return RESULT::ABORT_FAILURE;
   }
 
   for (int i = 0; i < node_ownership_set.size(); i++) {
     const int targetId = node_ownership_set[i];
-    RDMAConnection connection = connections[threadId][targetId];
+    RDMAConnection connection = connections[targetId][threadId];
     infinity::queues::QueuePair *qp = connection.qp;
     infinity::core::Context *context = connection.context;
     infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
@@ -210,7 +210,7 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
     requestToken.waitUntilCompleted();
   }
 
-  release(node_ownership_set, node.key);
+  release(node.key, threadId, node_ownership_set);
   return RESULT::TRUE;
 }
 */
