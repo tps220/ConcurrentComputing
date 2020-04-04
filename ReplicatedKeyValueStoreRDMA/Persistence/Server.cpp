@@ -27,9 +27,9 @@ struct RDMAConnection {
 
 RDMAConnection** connections = NULL;
 
-void populate_store() {
+void populate_store(unsigned int seed) {
   for (int i = 0; i < INITIAL_SIZE; i++) {
-    Node<int, int> element(rand_range_re(66, DEFAULT_RANGE), rand_range_re(66, DEFAULT_RANGE));
+    Node<int, int> element(rand_range_re(&seed, DEFAULT_RANGE), rand_range_re(&seed, DEFAULT_RANGE));
     store -> insert(element);
   }
 }
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   GlobalView environment = Parser::getEnvironment();
   store = new Cuckoo<int, int>(DEFAULT_SIZE);
 	std::vector<std::thread> threads;
-  populate_store(); //only for testing on a single server, otherwise inconsistente state across nodes
+  populate_store(9); //only for testing on a single server, otherwise inconsistente state across nodes
 	
 	//Sharing context and memory regions
 	//as outlined for best performance with limited number of threads
