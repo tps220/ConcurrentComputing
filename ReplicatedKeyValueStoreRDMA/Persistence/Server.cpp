@@ -65,25 +65,23 @@ int main(int argc, char** argv) {
 	);
 	infinity::memory::RegionToken *bufferToken = bufferToReadWrite -> createRegionToken();
 	connections = new RDMAConnection*[environment.nodes.size()];
+	infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
+	qpFactory -> bindToPort(PORT_NUMBER);
 	for (int i = 0; i < environment.nodes.size(); i++) {
 		connections[i] = new RDMAConnection[environment.clientsPerServer];
 		for (int j = 0; j < environment.clientsPerServer; j++) {
-  		infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
-  		infinity::queues::QueuePair *qp;
-
-			printf("Creating buffers to receive a message\n");
+			printf("Creating buffers to receive a message for node %d\n", j);
 			for (int iterator = 0; iterator < BUFFERS_PER_CLIENT; iterator++) {
 				infinity::memory::Buffer *bufferToReceive = new infinity::memory::Buffer(context, DEFAULT_BUFFER_SIZE);
 				context->postReceiveBuffer(bufferToReceive);
 			}
-
+			infinity::queues::QueuePair *qp;
 			printf("Setting up connection (blocking)\n");
-			qpFactory -> bindToPort(PORT_NUMBER);
 			qp = qpFactory->acceptIncomingConnection(bufferToken, sizeof(infinity::memory::RegionToken)); //automatically restiers queue pair to a map bound to the context
 
-		 RDMAConnection connection(context, qp);
-		 connections[i][j] = connection;
-		 std::cout << "Established connection " << i << "," << j << std::endl;
+		 	RDMAConnection connection(context, qp);
+		 	connections[i][j] = connection;
+		 	std::cout << "Established connection " << i << "," << j << std::endl;
 		}
 		threads.push_back(std::thread(connection_handler, i));
 	}
