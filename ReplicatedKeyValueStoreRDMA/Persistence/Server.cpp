@@ -11,7 +11,7 @@
 #include <thread>
 #include "Benchmark.hpp"
 
-#define DEFAULT_RANGE 200000
+#define DEFAULT_EXPERIMENT_RANGE 200000
 #define INITIAL_SIZE 20000
 #define DEFAULT_SIZE 100000 / ENTRY_WIDTH
 Cuckoo<int, int> *store = NULL;
@@ -29,7 +29,7 @@ RDMAConnection** connections = NULL;
 
 void populate_store(unsigned int seed) {
   for (int i = 0; i < INITIAL_SIZE; i++) {
-    Node<int, int> element(rand_range_re(&seed, DEFAULT_RANGE), rand_range_re(&seed, DEFAULT_RANGE));
+    Node<int, int> element(rand_range_re(&seed, DEFAULT_EXPERIMENT_RANGE), rand_range_re(&seed, DEFAULT_EXPERIMENT_RANGE));
     store -> insert(element);
   }
 }
