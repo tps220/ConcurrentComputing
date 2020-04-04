@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
   		infinity::queues::QueuePair *qp;
 
 			printf("Creating buffers to receive a message\n");
-			for (int iterator = 0; iterator < BUFFERS_PER_CLIENT; i++) {
+			for (int iterator = 0; iterator < BUFFERS_PER_CLIENT; iterator++) {
 				infinity::memory::Buffer *bufferToReceive = new infinity::memory::Buffer(context, DEFAULT_BUFFER_SIZE);
 				context->postReceiveBuffer(bufferToReceive);
 			}
