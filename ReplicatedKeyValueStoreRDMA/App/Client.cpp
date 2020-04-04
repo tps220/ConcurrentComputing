@@ -257,8 +257,7 @@ int main(int argc, char **argv) {
   updates = 0;
   effupds = 0;
   aborted = 0;
-  for (int i = 0; i < nb_threads; i++) {
-    #ifdef PRINT_THREAD_LOCAL_DATA
+  for (int i = 0; i < data.size(); i++) {
         printf("Thread %d\n", i);
         printf("  #add        : %lu\n", data[i].nb_add);
         printf("    #added    : %lu\n", data[i].nb_added);
@@ -266,7 +265,6 @@ int main(int argc, char **argv) {
         printf("    #removed  : %lu\n", data[i].nb_removed);
         printf("  #contains   : %lu\n", data[i].nb_contains);
         printf("  #found      : %lu\n", data[i].nb_found);
-    #endif
 
     reads += data[i].nb_contains;
     effreads += data[i].nb_contains + 
