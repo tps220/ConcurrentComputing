@@ -262,3 +262,17 @@ RESULT Remote::insert(std::vector<std::pair<int, int>> elements, int threadId) {
   }
   return RESULT::TRUE;
 }
+
+void Remote::awaitMaster() {
+  if (this -> connections.size() == 0) {
+    return;
+  }
+  const int targetId = this -> connections.size() - 1; //globally known environment
+  RDMAConnection connection = connections[targetId][0];
+  infinity::core::Context *context = connection.context;
+  infinity::memory::Buffer *bufferToReceive = new infinity::memory::Buffer(context, 64);
+	context->postReceiveBuffer(bufferToReceive);
+  infinity::core::receive_element_t receiveElement;
+	while (!context->receive(&receiveElement));
+  context->postReceiveBuffer(receiveElement.buffer);
+}

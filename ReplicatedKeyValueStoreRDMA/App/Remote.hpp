@@ -51,5 +51,5 @@ public:
   void release(const int key, const int threadId, std::vector<int> node_ownership_set);
   std::vector<int> prepareMessage(const int key, const int threadId);
   RESULT insert(std::vector<std::pair<int, int>> elements, int threadId);
-  //void awaitMaster();
+  void awaitMaster();
 };

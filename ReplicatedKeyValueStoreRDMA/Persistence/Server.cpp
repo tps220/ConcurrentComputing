@@ -10,6 +10,7 @@
 #include <infinity/requests/RequestToken.h>
 #include <thread>
 #include "Benchmark.hpp"
+#include "Master.hpp"
 
 #define DEFAULT_EXPERIMENT_RANGE 1000000
 #define INITIAL_SIZE 200000
@@ -90,6 +91,18 @@ int main(int argc, char** argv) {
 	}
 	for (int i = 0; i < WORKER_THREAD_COUNT; i++) {
 		threads.push_back(std::thread(connection_handler, i));		
+	}
+	//Start experiment
+	if (Master::isMaster(environment.nodes[environment.nodes.size() - 1].server)) {
+		for (int i = 0; i < environment.nodes.size()); i++) {
+			RDMAConnection connection = connections[i][0]; //symmetrical to client knowledge
+    	infinity::queues::QueuePair *qp = connection.qp;
+    	infinity::core::Context *context = connection.context;
+    	infinity::requests::RequestToken requestToken(context);
+    	infinity::memory::Buffer *buffer2Sided = new infinity::memory::Buffer(context, 8);
+    	qp -> send(buffer2Sided, &requestToken);
+    	requestToken.waitUntilCompleted();
+		}
 	}
 	std::cout << "Finished opening connections" << std::endl;
 	while(1) {}
