@@ -240,7 +240,8 @@ RESULT Remote::insert(std::vector<std::pair<int, int>> elements, int threadId) {
 
   Node* insertions = new Node[elements.size()];
   for (int i = 0; i < elements.size(); i++) {
-    insertions[i](elements[i].first, elements[i].second);
+    insertions[i].key = elements[i].first;
+    insertions[i].val = elements[i].second;
   }
 
   for (int i = 0; i < elements.size(); i++) {
@@ -257,7 +258,7 @@ RESULT Remote::insert(std::vector<std::pair<int, int>> elements, int threadId) {
   }
   
   for (int i = 0; i < elements.size(); i++) {
-    release(node.key, threadId, node_ownership_set[i]);
+    release(elements[i].first, threadId, node_ownership_set[i]);
   }
   return RESULT::TRUE;
 }

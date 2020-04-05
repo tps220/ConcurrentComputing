@@ -56,32 +56,28 @@ void execute_remote_txs(Thread_Data *thread) {
         }
         data -> nb_add++;
       } else { // remove in synchrobench but actually multi-insert here
-        if (data -> alternate) { // alternate mode (default)
-          std::pair<int, int> keys = { last, last };
-          RESULT retval = remote -> insert(keys, threadId);
-          if (retval == RESULT::TRUE) {
-            data -> nb_removed++;
-          }
-          else if (retval == RESULT::ABORT_FAILURE) {
-            data -> nb_aborted++;
-          }
-          last = -1;
-        } else {
           /* Random computation only in non-alternated cases */
           val = rand_range_re(&data -> seed, data -> range);
           std::pair<int, int> keys = { val, val };
+          val = rand_range_re(&data -> seed, data -> range);
+          std::pair<int, int> keys2 = {val, val};
+	  val = rand_range_re(&data -> seed, data -> range);
+          std::pair<int, int> keys3 = {val, val};
+          std::vector<std::pair<int, int>> elements;
+          elements.push_back(keys);
+          elements.push_back(keys2);
+          elements.push_back(keys3);
           RESULT retval = remote -> insert(keys, threadId);
           /* Remove one random value */
           if (retval == RESULT::TRUE) {
-            data -> nb_removed++;
+            data -> nb_removed += 3;
             /* Repeat until successful, to avoid size variations */
             last = -1;
           }
           else if (retval == RESULT::ABORT_FAILURE) {
             data -> nb_aborted++;
           }
-        }
-        data -> nb_remove++;
+        data -> nb_remove += 3;
       }
 
     } else { // read
