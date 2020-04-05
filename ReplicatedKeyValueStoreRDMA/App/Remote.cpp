@@ -224,3 +224,40 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   release(node.key, threadId, node_ownership_set);
   return RESULT::TRUE;
 }
+
+RESULT Remote::insert(std::vector<std::pair<int, int>> elements, int threadId) {
+  std::vector<std::vector<int>> node_ownership_set;
+  for (int i = 0; i < elements.size(); i++) {
+    std::vector<int> current_node_ownership_set = prepareMessage(elements[i].first, threadId);
+    if (current_node_ownership_set.size() == 0) {
+      for (int j = i - 1; j >= 0; j--) {
+        release(elements[j].first, threadId, node_ownership_set[j]);
+      }
+      return RESULT::ABORT_FAILURE;
+    }
+    node_ownership_set.push_back(current_node_ownership_set);
+  }
+
+  Node* insertions = new Node[elements.size()];
+  for (int i = 0; i < elements.size(); i++) {
+    insertions[i](elements[i].first, elements[i].second);
+  }
+
+  for (int i = 0; i < elements.size(); i++) {
+    const int targetId = i;
+    RDMAConnection connection = connections[targetId][threadId];
+    infinity::queues::QueuePair *qp = connection.qp;
+    infinity::core::Context *context = connection.context;
+    infinity::memory::RegionToken *remoteBufferToken = connection.remoteBufferToken;
+    infinity::requests::RequestToken requestToken(context);
+
+    infinity::memory::Buffer *buffer2Sided = new infinity::memory::Buffer(context, insertions, 24);
+    qp->send(buffer2Sided, &requestToken);
+    requestToken.waitUntilCompleted();
+  }
+  
+  for (int i = 0; i < elements.size(); i++) {
+    release(node.key, threadId, node_ownership_set[i]);
+  }
+  return RESULT::TRUE;
+}

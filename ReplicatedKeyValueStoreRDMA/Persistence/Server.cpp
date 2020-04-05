@@ -40,8 +40,10 @@ void connection_handler(const int id) {
 	while (1) {
 		infinity::core::receive_element_t receiveElement;
 		while (!context->receive(&receiveElement));
-		Node<int, int>* element = (Node<int, int>*)receiveElement.buffer -> getData();
-		std::cout << "received (" << element -> key << "," << element -> val << ")" << std::endl;
+		Node<int, int>* elements = (Node<int, int>*)receiveElement.buffer -> getData();
+		for (int i = 0; i < receiveElement.bytesWritten / sizeof(Node<int, int>); i++) {
+			std::cout << "received (" << elements[i].key << "," << elements[i].val << ")" << std::endl;
+		}
 		context->postReceiveBuffer(receiveElement.buffer);
 		//handle operation
 	}
