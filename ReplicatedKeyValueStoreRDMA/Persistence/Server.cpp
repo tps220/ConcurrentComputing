@@ -17,6 +17,7 @@
 Cuckoo<int, int> *store = NULL;
 #define BUFFERS_PER_CLIENT 4
 #define DEFAULT_BUFFER_SIZE 64
+#define WORKER_THREAD_COUNT 6
 
 struct RDMAConnection {
   infinity::core::Context *context;
@@ -35,8 +36,7 @@ void populate_store(unsigned int seed) {
 }
 
 void connection_handler(const int id) {
-	RDMAConnection* thread_connection_set = connections[id];
-	infinity::core::Context *context = thread_connection_set[0].context;
+	infinity::core::Context *context = connections[0][0].context;
 	while (1) {
 		infinity::core::receive_element_t receiveElement;
 		while (!context->receive(&receiveElement));
@@ -87,7 +87,9 @@ int main(int argc, char** argv) {
 		 	connections[i][j] = connection;
 		 	std::cout << "Established connection " << i << "," << j << std::endl;
 		}
-		threads.push_back(std::thread(connection_handler, i));
+	}
+	for (int i = 0; i < WORKER_THREAD_COUNT; i++) {
+		threads.push_back(std::thread(connection_handler, i));		
 	}
 	std::cout << "Finished opening connections" << std::endl;
 	while(1) {}
