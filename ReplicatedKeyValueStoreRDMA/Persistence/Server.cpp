@@ -13,7 +13,7 @@
 #include "Master.hpp"
 
 #define DEFAULT_EXPERIMENT_RANGE 1000000
-#define INITIAL_SIZE 200000
+#define INITIAL_SIZE 100000
 #define DEFAULT_SIZE (1000000 / ENTRY_WIDTH)
 Cuckoo<int, int> *store = NULL;
 #define BUFFERS_PER_CLIENT 4
