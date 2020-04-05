@@ -120,7 +120,7 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   const int startingId = fastrand() % this -> numNodes,
             index = hash(key, PRIMARY);
   
-  const int read_offset = (SIZE + index) * ENTRY_WIDTH * sizeof(Node),
+  const int read_offset = (SIZE * ENTRY_WIDTH + index) * sizeof(Node),
             read_length = LOCK_WIDTH;
   RESULT retval = RESULT::FALSE;
   
