@@ -33,7 +33,8 @@ public:
   }
 
   Table(unsigned int size) {
-    this -> elements = new Node<K, V>[size * ENTRY_WIDTH + size]; //contiguous block of elements + CAS locks
+    this -> elements = new Node<K, V>[size * (ENTRY_WIDTH + 1)]; //contiguous block of elements + CAS locks
+    memset(this -> elements, 0, size * (ENTRY_WIDTH + 1) * sizeof(Node<K, V>));
   }
 
   Node<K, V>* getOffset(int idx) {

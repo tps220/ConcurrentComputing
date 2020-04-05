@@ -72,7 +72,7 @@ Buffer::Buffer(infinity::core::Context *context, void *memory, uint64_t sizeInBy
 Buffer::Buffer(infinity::core::Context *context, void* memory, uint64_t sizeInBytes, int access) {
 	this->context = context;
 	this->sizeInBytes = sizeInBytes;
-	this->memoryRegionType = RegionType::BUFFER; //technically this isn't ture since the ibv_access_flags could be atomic
+	this->memoryRegionType = RegionType::ATOMIC; //hacking this here //technically this isn't ture since the ibv_access_flags could be atomic
 
 	this->data = memory;
 	this->ibvMemoryRegion = ibv_reg_mr(this->context->getProtectionDomain(), this->data, this->sizeInBytes, access);
