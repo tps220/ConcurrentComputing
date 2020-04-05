@@ -114,7 +114,8 @@ RESULT Remote::get(int key, int threadId) {
   return retval;
 }
 
-RESULT Remote::insert(std::pair<int, int> element, int threadId) {
+/*
+RESULT Remote::insertTest(std::pair<int, int> element, int threadId) {
   const int key = element.first,
             node_set_size = this -> connections.size();
   const int startingId = fastrand() % this -> numNodes,
@@ -151,10 +152,11 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   }
   return RESULT::TRUE;
 }
+*/
 
 void Remote::release(const int key, const int threadId, std::vector<int> node_ownership_set) {
   const int index = hash(key, PRIMARY);
-  const int read_offset = (SIZE + index) * ENTRY_WIDTH * sizeof(Node);
+  const int read_offset = (SIZE * ENTRY_WIDTH + index) * sizeof(Node);
 
   for (int i = 0; i < node_ownership_set.size(); i++) {
     const int targetId = node_ownership_set[i];
@@ -175,7 +177,7 @@ std::vector<int> Remote::prepareMessage(const int key, const int threadId) {
             startingId = fastrand() % this -> numNodes,
             index = hash(key, PRIMARY);
   
-  const int read_offset = (SIZE + index) * ENTRY_WIDTH * sizeof(Node);
+  const int read_offset = (SIZE * ENTRY_WIDTH + index) * sizeof(Node);
   std::vector<int> node_ownership_set;
 
   for (int i = 0; i < node_set_size; i++) {
@@ -198,7 +200,7 @@ std::vector<int> Remote::prepareMessage(const int key, const int threadId) {
   }
 }
 
-/*
+
 RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   Node node(element.first, element.second)
   std::vector<int> node_ownership_set = prepareMessage(node.key, threadId);
@@ -223,4 +225,3 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
   release(node.key, threadId, node_ownership_set);
   return RESULT::TRUE;
 }
-*/
