@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
 	}
 	//Start experiment
 	if (Master::isMaster(environment.nodes[environment.nodes.size() - 1].server)) {
-		for (int i = 0; i < environment.nodes.size()); i++) {
+		for (int i = 0; i < environment.nodes.size(); i++) {
 			RDMAConnection connection = connections[i][0]; //symmetrical to client knowledge
     	infinity::queues::QueuePair *qp = connection.qp;
     	infinity::core::Context *context = connection.context;
