@@ -12,7 +12,7 @@
 #include <infinity/requests/RequestToken.h>
 
 #define ENTRY_WIDTH 8
-#define SIZE (100000 / ENTRY_WIDTH)
+#define SIZE (1000000 / ENTRY_WIDTH)
 #define LOCK_WIDTH 8
 
 enum FUNCTION {

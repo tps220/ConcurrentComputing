@@ -11,9 +11,9 @@
 #include <thread>
 #include "Benchmark.hpp"
 
-#define DEFAULT_EXPERIMENT_RANGE 200000
-#define INITIAL_SIZE 20000
-#define DEFAULT_SIZE (100000 / ENTRY_WIDTH)
+#define DEFAULT_EXPERIMENT_RANGE 1000000
+#define INITIAL_SIZE 200000
+#define DEFAULT_SIZE (1000000 / ENTRY_WIDTH)
 Cuckoo<int, int> *store = NULL;
 #define BUFFERS_PER_CLIENT 4
 #define DEFAULT_BUFFER_SIZE 64
