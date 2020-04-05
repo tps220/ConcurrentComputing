@@ -219,7 +219,6 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
     infinity::memory::Buffer *buffer2Sided = new infinity::memory::Buffer(context, &insertion, 8);
     qp->send(buffer2Sided, &requestToken);
     requestToken.waitUntilCompleted();
-    delete buffer2Sided;
   }
 
   release(node.key, threadId, node_ownership_set);
@@ -256,7 +255,6 @@ RESULT Remote::insert(std::vector<std::pair<int, int>> elements, int threadId) {
     infinity::memory::Buffer *buffer2Sided = new infinity::memory::Buffer(context, insertions, 24);
     qp->send(buffer2Sided, &requestToken);
     requestToken.waitUntilCompleted();
-    delete buffer2Sided;
   }
   
   for (int i = 0; i < elements.size(); i++) {
