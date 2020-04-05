@@ -42,7 +42,7 @@ void connection_handler(const int id) {
 		while (!context->receive(&receiveElement));
 		Node<int, int>* elements = (Node<int, int>*)receiveElement.buffer -> getData();
 		for (int i = 0; i < receiveElement.bytesWritten / sizeof(Node<int, int>); i++) {
-			std::cout << "received (" << elements[i].key << "," << elements[i].val << ")" << std::endl;
+			store -> insert(elements[i]);
 		}
 		context->postReceiveBuffer(receiveElement.buffer);
 		//handle operation
