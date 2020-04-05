@@ -13,7 +13,7 @@
 
 #define DEFAULT_EXPERIMENT_RANGE 200000
 #define INITIAL_SIZE 20000
-#define DEFAULT_SIZE 100000 / ENTRY_WIDTH
+#define DEFAULT_SIZE (100000 / ENTRY_WIDTH)
 Cuckoo<int, int> *store = NULL;
 #define BUFFERS_PER_CLIENT 4
 #define DEFAULT_BUFFER_SIZE 64
@@ -54,6 +54,7 @@ int main(int argc, char** argv) {
 	std::vector<std::thread> threads;
   populate_store(9); //only for testing on a single server, otherwise inconsistente state across nodes
 	
+	std::cout << "REPLICATED HASH MAP" << std::endl << "STORAGE_SIZE: " << store -> getStorageSize() << std::endl;
 	//Sharing context and memory regions
 	//as outlined for best performance with limited number of threads
 	//by https://www.mcs.anl.gov/~balaji/pubs/2018/icpads/icpads18.verbs_res_sharing.pdf

@@ -33,8 +33,8 @@ public:
   }
 
   Table(unsigned int size) {
-    this -> elements = new Node<K, V>[size * (ENTRY_WIDTH + 1)]; //contiguous block of elements + CAS locks
-    memset(this -> elements, 0, size * (ENTRY_WIDTH + 1) * sizeof(Node<K, V>));
+    this -> elements = new Node<K, V>[size * ENTRY_WIDTH + size]; //contiguous block of elements + CAS locks
+    memset(this -> elements, 0, (size * ENTRY_WIDTH + size) * sizeof(Node<K, V>));
   }
 
   Node<K, V>* getOffset(int idx) {
@@ -181,7 +181,7 @@ public:
   }
 
   unsigned int getStorageSize() {
-    return this -> buckets * (ENTRY_WIDTH + 1) * sizeof(Node<K, V>);
+    return (this -> buckets * ENTRY_WIDTH + this -> buckets) * sizeof(Node<K, V>);
   }
 
   Cuckoo(unsigned int buckets) : buckets(buckets) {
