@@ -23,13 +23,11 @@ inline RESULT findElement(const Node* elements, int key) {
 //by https://www.mcs.anl.gov/~balaji/pubs/2018/icpads/icpads18.verbs_res_sharing.pdf 
 Remote::Remote(GlobalView environment) : numNodes(environment.nodes.size()) {
   infinity::core::Context *context = new infinity::core::Context();
+  infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
   for (ServerNode node : environment.nodes) {
     std::vector<RDMAConnection> thread_connections;
     for (int i = 0; i < environment.clientsPerServer; i++) {
-	    infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
-
       printf("Connecting to remote node %s %d\n", node.server, node.port);
-
 	    infinity::queues::QueuePair *qp = qpFactory -> connectToRemoteHost(node.server, node.port);
 	    infinity::memory::RegionToken *remoteBufferToken = (infinity::memory::RegionToken *) qp->getUserData();
       thread_connections.push_back(RDMAConnection(context, qp, remoteBufferToken));
