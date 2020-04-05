@@ -27,13 +27,14 @@ volatile int stop = 0;
 barrier_t local_barrier; //need a local and global barrier in order to coordinate timing across and within nodes
 Remote* remote = NULL;
 
-#define READ_TXS true
+#define READ_WRITE_TXS true
 
 #ifdef READ_WRITE_TXS
 void execute_remote_txs(Thread_Data *thread) {
   int unext, last = -1; 
   val_t val = 0, val_2 = 0;
   thread_benchmark* data = thread -> benchmark;
+  const int threadId = thread -> id;
 
   barrier_cross(&local_barrier);
   
@@ -44,9 +45,8 @@ void execute_remote_txs(Thread_Data *thread) {
     if (unext) { // update
       if (last < 0) { // add
         val = rand_range_re(&data -> seed, data -> range);
-        val_2 = rand_range_re(&data -> seed, data -> range - 1) + 1;
-        std::pair<int, int> keys = { val, val_2 };
-        RESULT retval = remote -> insert(keys);
+        std::pair<int, int> keys = { val, val };
+        RESULT retval = remote -> insert(keys, threadId);
         if (retval == RESULT::TRUE) {
           data -> nb_added++;
           last = val;
@@ -55,9 +55,10 @@ void execute_remote_txs(Thread_Data *thread) {
           data -> nb_aborted++;
         }
         data -> nb_add++;
-      } else { // remove
+      } else { // remove in synchrobench but actually multi-insert here
         if (data -> alternate) { // alternate mode (default)
-          RESULT retval = remote -> remove(last);
+          std::pair<int, int> keys = { last, last };
+          RESULT retval = remote -> insert(keys, threadId);
           if (retval == RESULT::TRUE) {
             data -> nb_removed++;
           }
@@ -68,7 +69,8 @@ void execute_remote_txs(Thread_Data *thread) {
         } else {
           /* Random computation only in non-alternated cases */
           val = rand_range_re(&data -> seed, data -> range);
-          RESULT retval = remote -> remove(val);
+          std::pair<int, int> keys = { val, val };
+          RESULT retval = remote -> insert(keys, threadId);
           /* Remove one random value */
           if (retval == RESULT::TRUE) {
             data -> nb_removed++;
@@ -84,13 +86,14 @@ void execute_remote_txs(Thread_Data *thread) {
 
     } else { // read
       val = rand_range_re(&data -> seed, data -> range);
-      RESULT retval = remote -> get(val);
+      RESULT retval = remote -> get(val, threadId);
       if (retval == RESULT::TRUE) {
         data -> nb_found++;
       }
       else if (retval == RESULT::ABORT_FAILURE) {
         data -> nb_aborted++;
       }
+      data -> nb_contains++;
     }
 
     /* Is the next op an update? */

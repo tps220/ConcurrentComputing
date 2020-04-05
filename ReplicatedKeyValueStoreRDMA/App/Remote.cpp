@@ -196,6 +196,7 @@ std::vector<int> Remote::prepareMessage(const int key, const int threadId) {
     }
     node_ownership_set.push_back(targetId);
   }
+  return node_ownership_set;
 }
 
 
