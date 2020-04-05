@@ -202,7 +202,7 @@ std::vector<int> Remote::prepareMessage(const int key, const int threadId) {
 
 
 RESULT Remote::insert(std::pair<int, int> element, int threadId) {
-  Node node(element.first, element.second)
+  Node node(element.first, element.second);
   std::vector<int> node_ownership_set = prepareMessage(node.key, threadId);
   if (node_ownership_set.size() == 0) {
     return RESULT::ABORT_FAILURE;
