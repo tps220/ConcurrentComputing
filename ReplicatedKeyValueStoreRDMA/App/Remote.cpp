@@ -149,7 +149,7 @@ RESULT Remote::insert(std::pair<int, int> element, int threadId) {
     qp -> compareAndSwap(remoteBufferToken, atomicOperation, 1, 0, infinity::queues::OperationFlags(), read_offset, &requestToken); //CAS operation, remotely offset by location of lock, default operation falgs (fenced, signaled, inlined set to false)
     requestToken.waitUntilCompleted();
   }
-
+  return RESULT::TRUE;
 }
 
 void Remote::release(const int key, const int threadId, std::vector<int> node_ownership_set) {
